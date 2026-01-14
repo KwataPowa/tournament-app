@@ -551,8 +551,8 @@ export function TournamentDetailPage() {
               <span className="font-mono text-violet-400 font-bold">{tournament.scoring_rules.correct_winner_points} pts</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-gray-400">Bonus:</span>
-              <span className="font-mono text-cyan-400 font-bold">+{tournament.scoring_rules.exact_score_bonus} pts</span>
+              <span className="text-gray-400">Score Exact:</span>
+              <span className="font-mono text-cyan-400 font-bold">{tournament.scoring_rules.exact_score_bonus} pts</span>
             </div>
           </div>
         </Card>
