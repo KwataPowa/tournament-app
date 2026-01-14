@@ -13,6 +13,7 @@ type BracketMatchCardProps = {
   onEnterResult?: (match: Match) => void
   onPredict?: (match: Match) => void
   onChangeFormat?: (match: Match, format: MatchFormat) => void
+  onEdit?: (match: Match) => void
   teams?: { name: string; logo?: string }[]
 }
 
@@ -28,6 +29,7 @@ export function BracketMatchCard({
   onEnterResult,
   onPredict,
   onChangeFormat,
+  onEdit,
   teams,
 }: BracketMatchCardProps) {
   const [showFormatMenu, setShowFormatMenu] = useState(false)

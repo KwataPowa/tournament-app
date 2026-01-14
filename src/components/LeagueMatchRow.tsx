@@ -61,8 +61,6 @@ export function LeagueMatchRow({
     // Prediction accuracy
     const predictionCorrect =
         prediction && hasResult && prediction.predicted_winner === match.result?.winner
-    const predictionExact =
-        predictionCorrect && prediction?.predicted_score === match.result?.score
 
     const getTeamLogo = (teamName: string) => {
         return teams?.find(t => t.name === teamName)?.logo

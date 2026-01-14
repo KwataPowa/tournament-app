@@ -3,11 +3,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getUserTournaments, deleteTournament } from '../services/tournaments'
 import { useAuthContext } from '../lib/AuthContext'
 import { Card } from '../components/ui/Card'
-import { Button } from '../components/ui/Button'
 import type { Tournament } from '../types'
 import { normalizeTeams } from '../types'
 import { useState } from 'react'
-import { Users, Trash2, Loader2, Trophy, Shield, Swords } from 'lucide-react'
+import { Users, Trash2, Loader2, Shield, Swords } from 'lucide-react'
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   draft: { label: 'Brouillon', className: 'bg-gray-500/20 text-gray-300 border border-gray-500/30' },

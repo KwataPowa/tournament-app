@@ -10,12 +10,11 @@ import {
   Plus,
   LogOut,
   Swords,
-  User,
 } from 'lucide-react'
 import { AvatarDisplay } from './AvatarDisplay'
 
 export function Layout() {
-  const { user, signOut } = useAuthContext()
+  const { signOut } = useAuthContext()
   const { profile, hasProfile } = useProfile()
   const location = useLocation()
   const [scrolled, setScrolled] = useState(false)

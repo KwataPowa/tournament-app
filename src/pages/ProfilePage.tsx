@@ -21,7 +21,6 @@ import {
   Skull,
   Rocket,
   Flame,
-  Star,
   Cat
 } from 'lucide-react'
 

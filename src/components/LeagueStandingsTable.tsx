@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Match } from '../types'
-import { Trophy, Medal, AlertCircle } from 'lucide-react'
+import { Trophy, Medal } from 'lucide-react'
 
 type LeagueStandingsTableProps = {
     teams: { name: string; logo?: string }[]
