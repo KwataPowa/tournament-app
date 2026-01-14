@@ -16,6 +16,7 @@ type MatchEditModalProps = {
     team_b: string
     round: number
     match_format: MatchFormat
+    start_time?: string | null
   }) => Promise<void>
   onDelete?: () => Promise<void>
   onClose: () => void
@@ -43,6 +44,17 @@ export function MatchEditModal({
   const [teamB, setTeamB] = useState(match?.team_b || '')
   const [round, setRound] = useState(match?.round || defaultRound)
   const [matchFormat, setMatchFormat] = useState<MatchFormat>(match?.match_format || 'BO3')
+
+  // Helper to format date for input (YYYY-MM-DDTHH:mm)
+  const formatForInput = (isoString?: string | null) => {
+    if (!isoString) return ''
+    const date = new Date(isoString)
+    const offset = date.getTimezoneOffset()
+    const localDate = new Date(date.getTime() - (offset * 60 * 1000))
+    return localDate.toISOString().slice(0, 16)
+  }
+
+  const [startTime, setStartTime] = useState(formatForInput(match?.start_time))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -54,6 +66,7 @@ export function MatchEditModal({
       setTeamB(match.team_b)
       setRound(match.round)
       setMatchFormat(match.match_format)
+      setStartTime(formatForInput(match.start_time))
     }
   }, [match])
 
@@ -117,6 +130,7 @@ export function MatchEditModal({
         team_b: teamB,
         round,
         match_format: matchFormat,
+        start_time: startTime ? new Date(startTime).toISOString() : null,
       })
       onClose()
     } catch (err) {
@@ -298,6 +312,19 @@ export function MatchEditModal({
                 ))}
               </div>
             </div>
+          </div>
+
+          {/* Date and Time */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Date et Heure
+            </label>
+            <input
+              type="datetime-local"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-mono transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 [color-scheme:dark]"
+            />
           </div>
 
           {/* Error message */}

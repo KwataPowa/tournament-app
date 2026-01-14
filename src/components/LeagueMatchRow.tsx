@@ -94,8 +94,7 @@ export function LeagueMatchRow({
         >
             {/* LEFT: Format Info & Teams */}
             <div className="flex items-center gap-6 flex-1 w-full md:w-auto">
-                {/* Format Badge */}
-                <div className="flex flex-col items-center min-w-[50px] gap-1">
+                <div className="flex flex-col items-center min-w-[50px] gap-2">
 
                     {tournamentStatus === 'draft' && isAdmin && onChangeFormat ? (
                         <div className="relative">
@@ -132,6 +131,13 @@ export function LeagueMatchRow({
                     ) : (
                         <span className="text-xs font-bold font-mono text-gray-500 bg-white/5 px-2 py-1 rounded">
                             {match.match_format || 'BO3'}
+                        </span>
+                    )}
+
+                    {/* Time Display */}
+                    {match.start_time && (
+                        <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20 whitespace-nowrap">
+                            {new Date(match.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                     )}
                 </div>

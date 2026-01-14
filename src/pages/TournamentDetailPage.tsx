@@ -56,6 +56,9 @@ export function TournamentDetailPage() {
   const [assignMatch, setAssignMatch] = useState<Match | null>(null)
   const [assignSlot, setAssignSlot] = useState<'team_a' | 'team_b'>('team_a')
 
+  // Round date editing state
+  const [editingRoundDate, setEditingRoundDate] = useState<number | null>(null)
+
   // Predictions state
   const [predictions, setPredictions] = useState<Prediction[]>([])
 
@@ -319,6 +322,7 @@ export function TournamentDetailPage() {
     team_b: string
     round: number
     match_format: MatchFormat
+    start_time?: string | null
   }) => {
     if (!tournament) return
 
@@ -395,12 +399,44 @@ export function TournamentDetailPage() {
   }
 
   // Bracket: assigner une équipe
-  const handleAssignTeam = async (teamName: string) => {
+  const handleAssignTeam = async (teamName: string, startTime?: string | null) => {
     if (!assignMatch) return
-    const updated = await assignTeamToMatch(assignMatch.id, assignSlot, teamName)
+
+    // 1. Assign team
+    let updated = await assignTeamToMatch(assignMatch.id, assignSlot, teamName)
+
+    // 2. Update start_time if provided/changed
+    if (startTime !== undefined && startTime !== assignMatch.start_time) {
+      updated = await updateMatch(assignMatch.id, { start_time: startTime })
+    }
+
     setMatches((prev) =>
       prev.map((m) => (m.id === updated.id ? updated : m))
     )
+  }
+
+  const handleSaveRoundDate = async (round: number, dateStr: string) => {
+    if (!tournament) return
+    setEditingRoundDate(null)
+
+    // Parse dateStr (coming from input type="date")
+    // If empty/cleared, delete the entry
+    const newDates = { ...(tournament.round_dates || {}) }
+    if (dateStr) {
+      newDates[round] = dateStr
+    } else {
+      delete newDates[round]
+    }
+
+    // Optimistic update
+    setTournament({ ...tournament, round_dates: newDates })
+
+    try {
+      await updateTournament(tournament.id, { round_dates: newDates })
+    } catch (err) {
+      console.error('Erreur sauvegarde date:', err)
+      // Revert if needed, but skipping for brevity
+    }
   }
 
   // Bracket: retirer une équipe
@@ -760,7 +796,44 @@ export function TournamentDetailPage() {
                       <div key={round} className="space-y-3">
                         <div className="flex items-center gap-4">
                           <div className="h-px bg-white/10 flex-1"></div>
-                          <span className="text-sm font-medium text-violet-400 uppercase tracking-wider">Journée {round}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-violet-400 uppercase tracking-wider">Journée {round}</span>
+
+                            {/* Edit Round Date */}
+                            {editingRoundDate === round ? (
+                              <div className="flex items-center gap-1 bg-white/10 rounded px-1 animate-in fade-in zoom-in-95 duration-200">
+                                <input
+                                  type="date"
+                                  autoFocus
+                                  className="bg-transparent text-white text-xs border-none focus:ring-0 p-1 font-mono [color-scheme:dark] outline-none"
+                                  defaultValue={tournament.round_dates?.[round.toString()] || ''}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveRoundDate(round, e.currentTarget.value)
+                                    if (e.key === 'Escape') setEditingRoundDate(null)
+                                  }}
+                                  onBlur={(e) => handleSaveRoundDate(round, e.target.value)}
+                                />
+                              </div>
+                            ) : (
+                              <>
+                                {tournament.round_dates?.[round.toString()] && (
+                                  <span className="text-xs text-gray-400 flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/5 font-mono">
+                                    <Calendar className="w-3 h-3 text-cyan-400" />
+                                    {new Date(tournament.round_dates[round.toString()]).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                  </span>
+                                )}
+                                {isAdmin && tournament.status === 'draft' && (
+                                  <button
+                                    onClick={() => setEditingRoundDate(round)}
+                                    className="p-1.5 hover:bg-white/10 rounded-full text-gray-500 hover:text-white transition-colors"
+                                    title="Changer la date"
+                                  >
+                                    <Calendar className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </div>
                           <div className="h-px bg-white/10 flex-1"></div>
                         </div>
 

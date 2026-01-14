@@ -59,6 +59,7 @@ export type Database = {
           invite_code: string
           teams: Team[]
           home_and_away: boolean
+          round_dates: Record<string, string>
           created_at: string
         }
         Insert: {
@@ -71,6 +72,7 @@ export type Database = {
           invite_code?: string
           teams: Team[]
           home_and_away: boolean
+          round_dates?: Record<string, string>
           created_at?: string
         }
         Update: {
@@ -83,6 +85,7 @@ export type Database = {
           invite_code?: string
           teams?: Team[]
           home_and_away?: boolean
+          round_dates?: Record<string, string>
           created_at?: string
         }
       }
@@ -97,6 +100,7 @@ export type Database = {
           round: number
           locked_at: string | null
           played_at: string | null
+          start_time: string | null
           created_at: string
           // Bracket fields
           bracket_position: number | null
@@ -117,6 +121,7 @@ export type Database = {
           round?: number
           locked_at?: string | null
           played_at?: string | null
+          start_time?: string | null
           created_at?: string
           // Bracket fields
           bracket_position?: number | null
@@ -137,6 +142,7 @@ export type Database = {
           round?: number
           locked_at?: string | null
           played_at?: string | null
+          start_time?: string | null
           created_at?: string
           // Bracket fields
           bracket_position?: number | null

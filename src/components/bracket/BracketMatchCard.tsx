@@ -12,7 +12,6 @@ type BracketMatchCardProps = {
   onAssignTeam?: (match: Match, slot: 'team_a' | 'team_b') => void
   onEnterResult?: (match: Match) => void
   onPredict?: (match: Match) => void
-  onEdit?: (match: Match) => void
   onChangeFormat?: (match: Match, format: MatchFormat) => void
   teams?: { name: string; logo?: string }[]
 }
@@ -28,7 +27,6 @@ export function BracketMatchCard({
   onAssignTeam,
   onEnterResult,
   onPredict,
-  onEdit,
   onChangeFormat,
   teams,
 }: BracketMatchCardProps) {
@@ -103,17 +101,18 @@ export function BracketMatchCard({
   return (
     <div
       className={`
-        bracket-match relative rounded-lg border
-        transition-all duration-200 min-w-[160px] min-h-28
+        bracket-match relative rounded-lg border flex overflow-hidden
+        transition-all duration-200 min-w-[200px] min-h-24
         ${isBye ? 'border-dashed border-white/10 bg-white/[0.02]' : 'border-white/10 bg-white/5'}
-        ${isClickable && tournamentStatus === 'active' ? 'cursor-pointer hover:border-violet-500/30 hover:bg-white/[0.07]' : ''}
+        ${isBye ? 'border-dashed border-white/10 bg-white/[0.02]' : 'border-white/5 bg-white/5'}
+        ${isClickable && tournamentStatus === 'active' ? 'hover:border-violet-500/30 hover:bg-white/[0.07]' : ''}
         ${hasResult ? 'border-green-500/20' : ''}
       `}
       onClick={handleCardClick}
     >
-      {/* Header: Match number + Format selector */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-black/20 border-b border-white/5">
-        <span className="text-[10px] text-gray-500 font-mono">
+      {/* LEFT SIDEBAR: Match Info & Format */}
+      <div className="w-9 bg-black/20 border-r border-white/5 flex flex-col items-center justify-between py-2">
+        <span className="text-[10px] text-gray-500 font-mono font-medium">
           M{(match.bracket_position ?? 0) + 1}
         </span>
 
@@ -123,9 +122,13 @@ export function BracketMatchCard({
             <button
               ref={buttonRef}
               onClick={handleOpenMenu}
-              className="flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-violet-500/20 text-violet-400 hover:bg-violet-500/30 transition-colors"
+              className="flex flex-col items-center gap-0.5 w-full px-0.5 py-1 rounded hover:bg-white/5 transition-colors group cursor-pointer"
+              title="Changer le format"
             >
-              {match.match_format || 'BO3'} <ChevronDown className="w-3 h-3" />
+              <span className="text-[9px] font-bold text-violet-400 group-hover:text-violet-300">
+                {match.match_format || 'BO3'}
+              </span>
+              <ChevronDown className="w-2.5 h-2.5 text-violet-500/50 group-hover:text-violet-400" />
             </button>
             {showFormatMenu && createPortal(
               <>
@@ -165,174 +168,192 @@ export function BracketMatchCard({
             )}
           </>
         ) : (
-          <span className="text-[11px] font-mono text-gray-500">
+          <span className="text-[10px] font-bold font-mono text-gray-500">
             {match.match_format || 'BO3'}
           </span>
         )}
       </div>
 
-      {/* Team A */}
-      <div
-        onClick={(e) => {
-          e.stopPropagation()
-          handleTeamClick('team_a')
-        }}
-        className={`
+      {/* RIGHT CONTENT: Date & Teams */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Date Header */}
+        {(match.start_time || isBye) && (
+          <div className="px-3 py-1 border-b border-white/5 flex items-center justify-center bg-white/[0.02] h-6">
+            {match.start_time ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] text-cyan-400 font-medium whitespace-nowrap">
+                  {new Date(match.start_time).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' })}
+                </span>
+                <span className="text-[8px] text-cyan-600/50">•</span>
+                <span className="text-[9px] text-cyan-300/90 font-mono">
+                  {new Date(match.start_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            ) : (
+              isBye && <span className="text-[9px] text-amber-500/50 font-bold tracking-wider">BYE</span>
+            )}
+          </div>
+        )}
+
+
+        {/* Team A */}
+        <div
+          onClick={(e) => {
+            e.stopPropagation()
+            handleTeamClick('team_a')
+          }}
+          className={`
           px-3 py-2.5 flex items-center justify-between gap-2 border-b border-white/5
           ${teamAWon ? 'bg-green-500/10' : ''}
           ${canAssignTeams ? 'cursor-pointer hover:bg-white/5' : ''}
         `}
-      >
-        <div className="flex items-center gap-2 overflow-hidden">
-          {teams?.find(t => t.name === match.team_a)?.logo && (
-            <img
-              src={teams.find(t => t.name === match.team_a)?.logo}
-              alt={match.team_a}
-              className="w-5 h-5 object-contain flex-shrink-0"
-            />
-          )}
-          <span
-            className={`
+        >
+          <div className="flex items-center gap-2 overflow-hidden">
+            {teams?.find(t => t.name === match.team_a)?.logo && (
+              <img
+                src={teams.find(t => t.name === match.team_a)?.logo}
+                alt={match.team_a}
+                className="w-5 h-5 object-contain flex-shrink-0"
+              />
+            )}
+            <span
+              className={`
               text-sm font-medium truncate
               ${match.team_a === 'TBD' ? 'text-gray-500 italic' : ''}
               ${teamAWon ? 'text-green-400' : 'text-gray-300'}
               ${teamBWon ? 'text-gray-500' : ''}
             `}
-          >
-            {match.team_a === 'TBD' ? 'À définir' : match.team_a}
-          </span>
-        </div>
-
-        {/* Score or Winner Indicator */}
-        <div className="flex items-center gap-2">
-          {hasResult && scoreA !== null && (
-            <span className={`font-mono font-bold text-sm ${teamAWon ? 'text-green-400' : 'text-gray-500'}`}>
-              {scoreA}
+            >
+              {match.team_a === 'TBD' ? 'À définir' : match.team_a}
             </span>
-          )}
-          {teamAWon && !hasResult && (
-            <span className="text-green-400 text-xs font-bold">W</span>
-          )}
-        </div>
-      </div>
+          </div>
 
-      {/* Team B */}
-      <div
-        onClick={(e) => {
-          e.stopPropagation()
-          handleTeamClick('team_b')
-        }}
-        className={`
+          {/* Score or Winner Indicator */}
+          <div className="flex items-center gap-2">
+            {hasResult && scoreA !== null && (
+              <span className={`font-mono font-bold text-sm ${teamAWon ? 'text-green-400' : 'text-gray-500'}`}>
+                {scoreA}
+              </span>
+            )}
+            {teamAWon && !hasResult && (
+              <span className="text-green-400 text-xs font-bold">W</span>
+            )}
+          </div>
+        </div>
+
+        {/* Team B */}
+        <div
+          onClick={(e) => {
+            e.stopPropagation()
+            handleTeamClick('team_b')
+          }}
+          className={`
           px-3 py-2.5 flex items-center justify-between gap-2 border-t border-transparent
           ${teamBWon ? 'bg-green-500/10' : ''}
           ${canAssignTeams ? 'cursor-pointer hover:bg-white/5' : ''}
         `}
-      >
-        <div className="flex items-center gap-2 overflow-hidden">
-          {teams?.find(t => t.name === match.team_b)?.logo && (
-            <img
-              src={teams.find(t => t.name === match.team_b)?.logo}
-              alt={match.team_b}
-              className="w-5 h-5 object-contain flex-shrink-0"
-            />
-          )}
-          <span
-            className={`
+        >
+          <div className="flex items-center gap-2 overflow-hidden">
+            {teams?.find(t => t.name === match.team_b)?.logo && (
+              <img
+                src={teams.find(t => t.name === match.team_b)?.logo}
+                alt={match.team_b}
+                className="w-5 h-5 object-contain flex-shrink-0"
+              />
+            )}
+            <span
+              className={`
               text-sm font-medium truncate
               ${match.team_b === 'TBD' ? 'text-gray-500 italic' : ''}
               ${teamBWon ? 'text-green-400' : 'text-gray-300'}
               ${teamAWon ? 'text-gray-500' : ''}
             `}
-          >
-            {match.team_b === 'TBD' ? 'À définir' : match.team_b}
-          </span>
-        </div>
-        {/* Score or Winner Indicator */}
-        <div className="flex items-center gap-2">
-          {hasResult && scoreB !== null && (
-            <span className={`font-mono font-bold text-sm ${teamBWon ? 'text-green-400' : 'text-gray-500'}`}>
-              {scoreB}
+            >
+              {match.team_b === 'TBD' ? 'À définir' : match.team_b}
             </span>
-          )}
-          {teamBWon && !hasResult && (
-            <span className="text-green-400 text-xs font-bold">W</span>
-          )}
+          </div>
+          {/* Score or Winner Indicator */}
+          <div className="flex items-center gap-2">
+            {hasResult && scoreB !== null && (
+              <span className={`font-mono font-bold text-sm ${teamBWon ? 'text-green-400' : 'text-gray-500'}`}>
+                {scoreB}
+              </span>
+            )}
+            {teamBWon && !hasResult && (
+              <span className="text-green-400 text-xs font-bold">W</span>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Action buttons for active tournament */}
-      {tournamentStatus === 'active' && !hasResult && !isTBD && !isBye && (
-        <div className="px-2 py-1.5 border-t border-white/5 flex gap-1">
-          {/* Bouton pronostiquer */}
-          {canPredict && !prediction && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onPredict!(match)
-              }}
-              className="flex-1 px-2 py-1 text-[10px] font-medium rounded bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 transition-colors"
-            >
-              Pronostiquer
-            </button>
-          )}
-          {/* Bouton modifier pronostic */}
-          {canPredict && prediction && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onPredict!(match)
-              }}
-              className="flex-1 px-2 py-1 text-[10px] font-medium rounded bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 transition-colors h-auto whitespace-normal text-center leading-tight"
-              title={`Modifier: ${prediction.predicted_winner} (${prediction.predicted_score})`}
-            >
-              <span className="block">{prediction.predicted_winner}</span>
-              <span className="text-cyan-300 font-mono">({prediction.predicted_score})</span>
-            </button>
-          )}
-          {/* Bouton résultat (admin) */}
-          {canEnterResult && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onEnterResult!(match)
-              }}
-              className="flex-1 px-2 py-1 text-[10px] font-medium rounded bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
-            >
-              Résultat
-            </button>
-          )}
-        </div>
-      )}
+        {/* Action buttons for active tournament */}
+        {tournamentStatus === 'active' && !hasResult && !isTBD && !isBye && (
+          <div className="px-2 py-1.5 border-t border-white/5 flex gap-1">
+            {/* Bouton pronostiquer */}
+            {canPredict && !prediction && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onPredict!(match)
+                }}
+                className="flex-1 px-2 py-1 text-[10px] font-medium rounded bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 transition-colors cursor-pointer"
+              >
+                Pronostiquer
+              </button>
+            )}
+            {/* Bouton modifier pronostic */}
+            {canPredict && prediction && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onPredict!(match)
+                }}
+                className="flex-1 px-2 py-1 text-[10px] font-medium rounded bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 transition-colors h-auto whitespace-normal text-center leading-tight cursor-pointer"
+                title={`Modifier: ${prediction.predicted_winner} (${prediction.predicted_score})`}
+              >
+                <span className="block">{prediction.predicted_winner}</span>
+                <span className="text-cyan-300 font-mono">({prediction.predicted_score})</span>
+              </button>
+            )}
+            {/* Bouton résultat (admin) */}
+            {canEnterResult && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEnterResult!(match)
+                }}
+                className="flex-1 px-2 py-1 text-[10px] font-medium rounded bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors cursor-pointer"
+              >
+                Résultat
+              </button>
+            )}
+          </div>
+        )}
 
-      {/* Prediction result (après que le résultat soit entré) */}
-      {prediction && hasResult && (
-        <div
-          className={`
+        {/* Prediction result (après que le résultat soit entré) */}
+        {prediction && hasResult && (
+          <div
+            className={`
             px-3 py-1 border-t text-center
             ${predictionExact ? 'bg-green-500/10 border-green-500/20' : ''}
             ${predictionCorrect && !predictionExact ? 'bg-amber-500/10 border-amber-500/20' : ''}
             ${!predictionCorrect ? 'bg-red-500/10 border-red-500/20' : ''}
           `}
-        >
-          <span
-            className={`
+          >
+            <span
+              className={`
               text-[10px]
               ${predictionExact ? 'text-green-400' : ''}
               ${predictionCorrect && !predictionExact ? 'text-amber-400' : ''}
               ${!predictionCorrect ? 'text-red-400' : ''}
             `}
-          >
-            {prediction.predicted_winner} ({prediction.predicted_score}) → {predictionCorrect ? `+${prediction?.points_earned ?? 0}` : '0'} pts
-          </span>
-        </div>
-      )}
+            >
+              {prediction.predicted_winner} ({prediction.predicted_score}) → {predictionCorrect ? `+${prediction?.points_earned ?? 0}` : '0'} pts
+            </span>
+          </div>
+        )}
 
-      {/* Bye indicator */}
-      {isBye && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-          <span className="text-xs text-amber-400 font-medium">BYE</span>
-        </div>
-      )}
+        {/* Bye indicator handled in header or subtle styling */}
+      </div>
     </div>
   )
 }

@@ -10,7 +10,7 @@ type TeamAssignModalProps = {
   slot: 'team_a' | 'team_b'
   availableTeams: Team[] // Si vide, permettre l'entrée libre
   assignedTeams: string[] // Liste des équipes déjà assignées (pour éviter les doublons)
-  onAssign: (teamName: string) => Promise<void>
+  onAssign: (teamName: string, startTime?: string | null) => Promise<void>
   onRemove: () => Promise<void>
   onClose: () => void
 }
@@ -28,6 +28,17 @@ export function TeamAssignModal({
   const hasTeam = currentTeam !== 'TBD'
 
   const [teamName, setTeamName] = useState(hasTeam ? currentTeam : '')
+
+  // Helper to format date for input (YYYY-MM-DDTHH:mm)
+  const formatForInput = (isoString?: string | null) => {
+    if (!isoString) return ''
+    const date = new Date(isoString)
+    const offset = date.getTimezoneOffset()
+    const localDate = new Date(date.getTime() - (offset * 60 * 1000))
+    return localDate.toISOString().slice(0, 16)
+  }
+
+  const [startTime, setStartTime] = useState(formatForInput(match.start_time))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -64,8 +75,9 @@ export function TeamAssignModal({
     }
 
     setLoading(true)
+    setLoading(true)
     try {
-      await onAssign(trimmedName)
+      await onAssign(trimmedName, startTime ? new Date(startTime).toISOString() : null)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur')
@@ -141,6 +153,22 @@ export function TeamAssignModal({
               </p>
             </div>
           )}
+
+          {/* Date and Time */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Date et Heure du match
+            </label>
+            <input
+              type="datetime-local"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-mono transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 [color-scheme:dark]"
+            />
+            <p className="mt-2 text-xs text-gray-500">
+              Définissez quand ce match aura lieu (optionnel).
+            </p>
+          </div>
 
           {/* Mode sélection */}
           {isSelectionMode && (
