@@ -545,7 +545,7 @@ export function TournamentDetailPage() {
           <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
             <ScrollText className="w-4 h-4 text-gray-400" /> Règles
           </h2>
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-4 text-sm h-9">
             <div className="flex items-center gap-2">
               <span className="text-gray-400">Vainqueur:</span>
               <span className="font-mono text-violet-400 font-bold">{tournament.scoring_rules.correct_winner_points} pts</span>
