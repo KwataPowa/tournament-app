@@ -104,7 +104,7 @@ export function BracketMatchCard({
     <div
       className={`
         bracket-match relative rounded-lg border
-        transition-all duration-200 min-w-[160px] h-28
+        transition-all duration-200 min-w-[160px] min-h-28
         ${isBye ? 'border-dashed border-white/10 bg-white/[0.02]' : 'border-white/10 bg-white/5'}
         ${isClickable && tournamentStatus === 'active' ? 'cursor-pointer hover:border-violet-500/30 hover:bg-white/[0.07]' : ''}
         ${hasResult ? 'border-green-500/20' : ''}
@@ -223,7 +223,7 @@ export function BracketMatchCard({
           handleTeamClick('team_b')
         }}
         className={`
-          px-3 py-2.5 flex items-center justify-between gap-2
+          px-3 py-2.5 flex items-center justify-between gap-2 border-t border-transparent
           ${teamBWon ? 'bg-green-500/10' : ''}
           ${canAssignTeams ? 'cursor-pointer hover:bg-white/5' : ''}
         `}

@@ -9,13 +9,14 @@ type BracketRoundProps = {
   isAdmin: boolean
   tournamentStatus: 'draft' | 'active' | 'completed'
   totalRounds: number
-  canAssignTeams?: boolean // True si ce round peut être configuré
+  canAssignTeams?: boolean
   onAssignTeam?: (match: Match, slot: 'team_a' | 'team_b') => void
   onEnterResult?: (match: Match) => void
   onPredict?: (match: Match) => void
   onChangeFormat?: (match: Match, format: MatchFormat) => void
   teams?: { name: string; logo?: string }[]
   spacingFactor?: number
+  customPaddingY?: number
 }
 
 export function BracketRound({
@@ -24,7 +25,6 @@ export function BracketRound({
   predictions,
   isAdmin,
   tournamentStatus,
-  // totalRounds is part of the interface but not used in current implementation
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   totalRounds: _totalRounds,
   canAssignTeams,
@@ -34,17 +34,15 @@ export function BracketRound({
   onChangeFormat,
   teams,
   spacingFactor = 1,
+  customPaddingY,
 }: BracketRoundProps) {
-  // Define constants for geometric calculation
-  const CARD_HEIGHT = 7; // rem (approx 112px, matching h-28 class)
-  const GAP_BASE = 1; // rem (matching gap between R1 matches)
+  const CARD_HEIGHT = tournamentStatus === 'active' ? 9.375 : 7
+  const GAP_BASE = 1
 
-  // Geometric progression for spacing
-  // Gap(factor) = (H + G) * factor - H
   const gapSize = (CARD_HEIGHT + GAP_BASE) * spacingFactor - CARD_HEIGHT
-
-  // PaddingTop(factor) = (H + G) * (factor - 1) * 0.5
-  const paddingY = (CARD_HEIGHT + GAP_BASE) * (spacingFactor - 1) * 0.5
+  const paddingY = customPaddingY !== undefined
+    ? customPaddingY
+    : (CARD_HEIGHT + GAP_BASE) * (spacingFactor - 1) * 0.5
 
   return (
     <div className="bracket-round flex flex-col min-w-[180px]">
