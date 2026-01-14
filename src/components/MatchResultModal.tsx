@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { FormEvent } from 'react'
 import type { Match, MatchFormat, MatchResult } from '../types'
 import { Button } from './ui/Button'
@@ -41,7 +42,7 @@ export function MatchResultModal({
 }: MatchResultModalProps) {
   const [winner, setWinner] = useState<'team_a' | 'team_b' | ''>(
     match.result?.winner === match.team_a ? 'team_a' :
-    match.result?.winner === match.team_b ? 'team_b' : ''
+      match.result?.winner === match.team_b ? 'team_b' : ''
   )
   const [score, setScore] = useState(match.result?.score || '')
   const [loading, setLoading] = useState(false)
@@ -85,10 +86,10 @@ export function MatchResultModal({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop modal-backdrop-enter">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 modal-backdrop modal-backdrop-enter">
       {/* Backdrop click to close */}
-      <div className="absolute inset-0" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
       <div className="relative w-full max-w-md glass-modal rounded-2xl overflow-hidden modal-enter">
@@ -218,6 +219,7 @@ export function MatchResultModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

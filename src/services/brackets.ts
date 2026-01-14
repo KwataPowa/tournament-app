@@ -187,6 +187,11 @@ export async function generateSingleEliminationBracket(
  * Creates winners bracket, losers bracket, and grand final
  * If teams are provided, places them in the first round matches
  */
+/**
+ * Generate a double elimination bracket
+ * Creates winners bracket, losers bracket, and grand final
+ * If teams are provided, places them in the first round matches
+ */
 export async function generateDoubleEliminationBracket(
   tournamentId: string,
   bracketSize: number,
@@ -215,57 +220,88 @@ export async function generateDoubleEliminationBracket(
   }
 
   // Generate losers bracket match IDs
-  // Losers bracket structure is more complex
   for (let round = 1; round <= totalLosersRounds; round++) {
-    // Calculate matches in this losers round
-    // Odd rounds have same count as previous even round
-    // Even rounds have half the count
-    let matchesInRound: number
-    if (round === 1) {
-      matchesInRound = bracketSize / 4
-    } else if (round % 2 === 0) {
-      // Even rounds: same as previous
-      matchesInRound = losersMatchIds.get(round - 1)?.length || 1
-    } else {
-      // Odd rounds: half of previous
-      matchesInRound = Math.max(1, (losersMatchIds.get(round - 1)?.length || 2) / 2)
-    }
+    // Number of matches in LB rounds follows a pattern:
+    // N/4, N/4, N/8, N/8, ..., 1, 1
+    // Rounds 1 & 2: N/4 matches
+    // Rounds 3 & 4: N/8 matches
+    // ...
+    const power = Math.ceil(round / 2) + 1
+    const matchesInRound = bracketSize / Math.pow(2, power)
+
+    // Safety check mostly for the final round calc
+    const count = Math.max(1, matchesInRound)
 
     const ids: string[] = []
-    for (let pos = 0; pos < matchesInRound; pos++) {
+    for (let pos = 0; pos < count; pos++) {
       ids.push(crypto.randomUUID())
     }
     losersMatchIds.set(round, ids)
   }
 
-  // Create winners bracket matches
+  // ==========================================
+  // CREATE WINNERS BRACKET
+  // ==========================================
   for (let round = 1; round <= totalWinnersRounds; round++) {
     const roundIds = winnersMatchIds.get(round)!
     const nextRoundIds = winnersMatchIds.get(round + 1)
 
     for (let pos = 0; pos < roundIds.length; pos++) {
-      // Determine next match in winners
+      const matchId = roundIds[pos]
+
+      // 1. Advance to Next Winners Match
+      // -------------------------------
       let nextMatchId: string | null = null
+      let targetSlotWinner: 'team_a' | 'team_b' | null = null
+
       if (round < totalWinnersRounds) {
+        // Standard bracket progression: 2 matches -> 1 match
         nextMatchId = nextRoundIds![Math.floor(pos / 2)]
+        targetSlotWinner = (pos % 2 === 0) ? 'team_a' : 'team_b'
       } else {
-        // Winners final goes to grand final
+        // Winners Final -> Grand Final (Slot A)
         nextMatchId = grandFinalId
+        targetSlotWinner = 'team_a'
       }
 
-      // Determine losers match for losers (simplified)
-      // First round losers go to losers round 1
+      // 2. Drop to Losers Bracket
+      // -------------------------
       let nextLoserMatchId: string | null = null
+      let targetSlotLoser: 'team_a' | 'team_b' | null = null
+
       if (round === 1) {
-        const losersRound1 = losersMatchIds.get(1)
-        if (losersRound1) {
-          nextLoserMatchId = losersRound1[Math.floor(pos / 2)]
-        }
+        // Round 1 Losers -> LB Round 1
+        // 4 matches -> 2 matches (Merge)
+        const lbRoundIds = losersMatchIds.get(1)!
+        nextLoserMatchId = lbRoundIds[Math.floor(pos / 2)]
+        targetSlotLoser = (pos % 2 === 0) ? 'team_a' : 'team_b'
+      }
+      else if (round === totalWinnersRounds) {
+        // Winners Final Loser -> Losers Final (Last LB Round)
+        // 1 match -> 1 match
+        const lbRoundIds = losersMatchIds.get(totalLosersRounds)!
+        nextLoserMatchId = lbRoundIds[0]
+        targetSlotLoser = 'team_a' // Usually takes top slot against LB winner
+      }
+      else {
+        // Intermediate Rounds (e.g. Quarter Finals)
+        // Losers drop to even LB rounds: 2, 4, 6...
+        // Formula: Drop to LB Round (round - 1) * 2
+        const lbTargetRound = (round - 1) * 2
+        const lbRoundIds = losersMatchIds.get(lbTargetRound)!
+
+        // In these rounds, matches correspond 1-to-1 (Both have N matches)
+        // To avoid immediate rematches, we strictly swap or reverse.
+        // Simple strategy: Reverse order (Top WB goes to Bottom LB match)
+        // pos 0 -> last LB match, pos 1 -> 2nd last...
+        const lbPos = lbRoundIds.length - 1 - pos
+        nextLoserMatchId = lbRoundIds[lbPos]
+        targetSlotLoser = 'team_a' // Consistently take Slot A (Drop-in slot)
       }
 
+      // 3. Teams & Format
+      // -----------------
       const matchFormat = round === totalWinnersRounds ? 'BO5' : defaultMatchFormat
-
-      // For round 1, assign teams if provided
       let team_a = 'TBD'
       let team_b = 'TBD'
       let is_bye = false
@@ -273,24 +309,16 @@ export async function generateDoubleEliminationBracket(
       if (round === 1 && teams.length > 0) {
         const teamIndexA = pos * 2
         const teamIndexB = pos * 2 + 1
-
-        // Assign team A if available
-        if (teamIndexA < teams.length) {
-          team_a = teams[teamIndexA]
-        }
-
-        // Assign team B if available, otherwise it's a bye
-        if (teamIndexB < teams.length) {
-          team_b = teams[teamIndexB]
-        } else {
-          // This is a bye match - team_a auto-advances
+        if (teamIndexA < teams.length) team_a = teams[teamIndexA]
+        if (teamIndexB < teams.length) team_b = teams[teamIndexB]
+        else {
           team_b = 'BYE'
           is_bye = true
         }
       }
 
       matchesToCreate.push({
-        id: roundIds[pos],
+        id: matchId,
         tournament_id: tournamentId,
         team_a,
         team_b,
@@ -299,37 +327,53 @@ export async function generateDoubleEliminationBracket(
         bracket_side: 'winners',
         next_match_id: nextMatchId,
         next_loser_match_id: nextLoserMatchId,
+        target_slot_winner: targetSlotWinner,
+        target_slot_loser: targetSlotLoser,
         is_bye,
         match_format: matchFormat,
       })
     }
   }
 
-  // Create losers bracket matches
+  // ==========================================
+  // CREATE LOSERS BRACKET
+  // ==========================================
   for (let round = 1; round <= totalLosersRounds; round++) {
     const roundIds = losersMatchIds.get(round)!
     const nextRoundIds = losersMatchIds.get(round + 1)
 
     for (let pos = 0; pos < roundIds.length; pos++) {
+      const matchId = roundIds[pos]
+
       let nextMatchId: string | null = null
+      let targetSlotWinner: 'team_a' | 'team_b' | null = null
 
       if (round < totalLosersRounds) {
-        if (round % 2 === 0) {
-          // Even rounds: next match is at same position in next round
+        if (round % 2 !== 0) {
+          // ODD ROUNDS (1, 3, 5...)
+          // These are "pure" LB matches or have just been fed by WB R1.
+          // Winners advance to NEXT round (Even), which is a Drop-in round.
+          // Pattern: 1-to-1 mapping into specific slot (Slot B, as A is taken by WB drop).
           nextMatchId = nextRoundIds![pos]
+          targetSlotWinner = 'team_b'
         } else {
-          // Odd rounds: matches combine into next round
+          // EVEN ROUNDS (2, 4...)
+          // These are Drop-in rounds (LB Winner + WB Loser).
+          // Winners advance to NEXT round (Odd), which is a consolidation round.
+          // Pattern: Match merge (2 -> 1).
           nextMatchId = nextRoundIds![Math.floor(pos / 2)]
+          targetSlotWinner = (pos % 2 === 0) ? 'team_a' : 'team_b'
         }
       } else {
-        // Losers final goes to grand final
+        // LOSERS FINAL -> Grand Final (Slot B)
         nextMatchId = grandFinalId
+        targetSlotWinner = 'team_b'
       }
 
-      const matchFormat = round === totalLosersRounds ? 'BO5' : defaultMatchFormat
+      const matchFormat = (round === totalLosersRounds) ? 'BO5' : defaultMatchFormat
 
       matchesToCreate.push({
-        id: roundIds[pos],
+        id: matchId,
         tournament_id: tournamentId,
         team_a: 'TBD',
         team_b: 'TBD',
@@ -337,13 +381,16 @@ export async function generateDoubleEliminationBracket(
         bracket_position: pos,
         bracket_side: 'losers',
         next_match_id: nextMatchId,
+        target_slot_winner: targetSlotWinner,
         is_bye: false,
         match_format: matchFormat,
       })
     }
   }
 
-  // Create grand final
+  // ==========================================
+  // CREATE GRAND FINAL
+  // ==========================================
   matchesToCreate.push({
     id: grandFinalId,
     tournament_id: tournamentId,

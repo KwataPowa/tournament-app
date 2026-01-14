@@ -104,6 +104,8 @@ export type Database = {
           next_match_id: string | null
           next_loser_match_id: string | null
           is_bye: boolean
+          target_slot_winner: 'team_a' | 'team_b' | null
+          target_slot_loser: 'team_a' | 'team_b' | null
         }
         Insert: {
           id?: string
@@ -122,6 +124,8 @@ export type Database = {
           next_match_id?: string | null
           next_loser_match_id?: string | null
           is_bye?: boolean
+          target_slot_winner?: 'team_a' | 'team_b' | null
+          target_slot_loser?: 'team_a' | 'team_b' | null
         }
         Update: {
           id?: string
@@ -140,6 +144,8 @@ export type Database = {
           next_match_id?: string | null
           next_loser_match_id?: string | null
           is_bye?: boolean
+          target_slot_winner?: 'team_a' | 'team_b' | null
+          target_slot_loser?: 'team_a' | 'team_b' | null
         }
       }
       predictions: {

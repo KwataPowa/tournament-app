@@ -95,11 +95,16 @@ export function BracketMatchCard({
   const predictionExact =
     predictionCorrect && prediction?.predicted_score === match.result?.score
 
+  // Score parsing
+  const [scoreA, scoreB] = hasResult && match.result?.score
+    ? match.result.score.split('-')
+    : [null, null]
+
   return (
     <div
       className={`
         bracket-match relative rounded-lg border
-        transition-all duration-200 min-w-[160px]
+        transition-all duration-200 min-w-[160px] h-28
         ${isBye ? 'border-dashed border-white/10 bg-white/[0.02]' : 'border-white/10 bg-white/5'}
         ${isClickable && tournamentStatus === 'active' ? 'cursor-pointer hover:border-violet-500/30 hover:bg-white/[0.07]' : ''}
         ${hasResult ? 'border-green-500/20' : ''}
@@ -197,9 +202,18 @@ export function BracketMatchCard({
             {match.team_a === 'TBD' ? 'À définir' : match.team_a}
           </span>
         </div>
-        {teamAWon && (
-          <span className="text-green-400 text-xs font-bold">W</span>
-        )}
+
+        {/* Score or Winner Indicator */}
+        <div className="flex items-center gap-2">
+          {hasResult && scoreA !== null && (
+            <span className={`font-mono font-bold text-sm ${teamAWon ? 'text-green-400' : 'text-gray-500'}`}>
+              {scoreA}
+            </span>
+          )}
+          {teamAWon && !hasResult && (
+            <span className="text-green-400 text-xs font-bold">W</span>
+          )}
+        </div>
       </div>
 
       {/* Team B */}
@@ -233,9 +247,17 @@ export function BracketMatchCard({
             {match.team_b === 'TBD' ? 'À définir' : match.team_b}
           </span>
         </div>
-        {teamBWon && (
-          <span className="text-green-400 text-xs font-bold">W</span>
-        )}
+        {/* Score or Winner Indicator */}
+        <div className="flex items-center gap-2">
+          {hasResult && scoreB !== null && (
+            <span className={`font-mono font-bold text-sm ${teamBWon ? 'text-green-400' : 'text-gray-500'}`}>
+              {scoreB}
+            </span>
+          )}
+          {teamBWon && !hasResult && (
+            <span className="text-green-400 text-xs font-bold">W</span>
+          )}
+        </div>
       </div>
 
       {/* Action buttons for active tournament */}
@@ -260,10 +282,11 @@ export function BracketMatchCard({
                 e.stopPropagation()
                 onPredict!(match)
               }}
-              className="flex-1 px-2 py-1 text-[10px] font-medium rounded bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 transition-colors truncate"
+              className="flex-1 px-2 py-1 text-[10px] font-medium rounded bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 transition-colors h-auto whitespace-normal text-center leading-tight"
               title={`Modifier: ${prediction.predicted_winner} (${prediction.predicted_score})`}
             >
-              {prediction.predicted_winner} <span className="text-cyan-300 font-mono">({prediction.predicted_score})</span>
+              <span className="block">{prediction.predicted_winner}</span>
+              <span className="text-cyan-300 font-mono">({prediction.predicted_score})</span>
             </button>
           )}
           {/* Bouton résultat (admin) */}
@@ -278,15 +301,6 @@ export function BracketMatchCard({
               Résultat
             </button>
           )}
-        </div>
-      )}
-
-      {/* Score display */}
-      {hasResult && (
-        <div className="px-3 py-1.5 bg-green-500/10 border-t border-green-500/20">
-          <p className="text-center text-xs font-mono text-green-400 font-bold">
-            {match.result?.score}
-          </p>
         </div>
       )}
 
@@ -308,7 +322,7 @@ export function BracketMatchCard({
               ${!predictionCorrect ? 'text-red-400' : ''}
             `}
           >
-            {prediction.predicted_winner} → {predictionCorrect ? `+${prediction?.points_earned ?? 0}` : '0'} pts
+            {prediction.predicted_winner} ({prediction.predicted_score}) → {predictionCorrect ? `+${prediction?.points_earned ?? 0}` : '0'} pts
           </span>
         </div>
       )}

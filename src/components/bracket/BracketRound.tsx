@@ -15,10 +15,10 @@ type BracketRoundProps = {
   onPredict?: (match: Match) => void
   onChangeFormat?: (match: Match, format: MatchFormat) => void
   teams?: { name: string; logo?: string }[]
+  spacingFactor?: number
 }
 
 export function BracketRound({
-  roundNumber,
   roundName,
   matches,
   predictions,
@@ -33,10 +33,18 @@ export function BracketRound({
   onPredict,
   onChangeFormat,
   teams,
+  spacingFactor = 1,
 }: BracketRoundProps) {
-  // Calculate spacing multiplier based on round
-  // First round: normal spacing, subsequent rounds: exponentially more spacing
-  const spacingMultiplier = Math.pow(2, roundNumber - 1)
+  // Define constants for geometric calculation
+  const CARD_HEIGHT = 7; // rem (approx 112px, matching h-28 class)
+  const GAP_BASE = 1; // rem (matching gap between R1 matches)
+
+  // Geometric progression for spacing
+  // Gap(factor) = (H + G) * factor - H
+  const gapSize = (CARD_HEIGHT + GAP_BASE) * spacingFactor - CARD_HEIGHT
+
+  // PaddingTop(factor) = (H + G) * (factor - 1) * 0.5
+  const paddingY = (CARD_HEIGHT + GAP_BASE) * (spacingFactor - 1) * 0.5
 
   return (
     <div className="bracket-round flex flex-col min-w-[180px]">
@@ -50,11 +58,11 @@ export function BracketRound({
 
       {/* Matches */}
       <div
-        className="flex flex-col flex-1 justify-around"
+        className="flex flex-col flex-1"
         style={{
-          gap: `${spacingMultiplier * 1}rem`,
-          paddingTop: `${(spacingMultiplier - 1) * 2}rem`,
-          paddingBottom: `${(spacingMultiplier - 1) * 2}rem`,
+          gap: `${gapSize}rem`,
+          paddingTop: `${paddingY}rem`,
+          paddingBottom: `${paddingY}rem`,
         }}
       >
         {matches.map((match) => (

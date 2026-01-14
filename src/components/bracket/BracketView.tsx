@@ -84,6 +84,67 @@ export function BracketView({
     return map
   }
 
+  // Helper to calculate spacing factors based on match progression
+  const spacingFactors = useMemo(() => {
+    const factors = new Map<string, number>() // key: "type-roundNum" -> factor
+
+    // Winners Bracket factors
+    // Usually standard doubling: 1, 2, 4, 8...
+    // But let's calculate based on progression just in case
+    let currentFactor = 1
+    const winnersRounds = Array.from(bracketData.winnersRounds.keys()).sort((a, b) => a - b)
+
+    winnersRounds.forEach((roundNum) => {
+      factors.set(`winners-${roundNum}`, currentFactor)
+
+      const currentRoundMatches = bracketData.winnersRounds.get(roundNum)?.length || 0
+      const nextRoundMatches = bracketData.winnersRounds.get(roundNum + 1)?.length
+
+      // If we know the next round, adjust factor for it
+      if (nextRoundMatches) {
+        if (nextRoundMatches === currentRoundMatches) {
+          // 1:1 progression, maintain factor
+        } else if (nextRoundMatches * 2 === currentRoundMatches) {
+          // 2:1 progression (halving), double factor
+          currentFactor *= 2
+        } else {
+          // Irregular, default to doubling as fallback for standard trees
+          currentFactor *= 2
+        }
+      }
+    })
+
+    // Losers Bracket factors
+    // More complex: 1, 1, 2, 2, 4, 4... usually
+    currentFactor = 1
+    const losersRounds = Array.from(bracketData.losersRounds.keys()).sort((a, b) => a - b)
+
+    losersRounds.forEach((roundNum) => {
+      factors.set(`losers-${roundNum}`, currentFactor)
+
+      const currentRoundMatches = bracketData.losersRounds.get(roundNum)?.length || 0
+      const nextRoundMatches = bracketData.losersRounds.get(roundNum + 1)?.length
+
+      if (nextRoundMatches) {
+        if (nextRoundMatches === currentRoundMatches) {
+          // 1:1 progression (e.g. L-R1 -> L-R2), maintain factor
+        } else if (nextRoundMatches * 2 === currentRoundMatches) {
+          // 2:1 progression (e.g. L-R2 -> L-R3), double factor
+          currentFactor *= 2
+        } else {
+          // Irregular
+          // For losers bracket, often better to maintain same factor if unsure, 
+          // but strictly if we merge, we double spacing.
+          if (nextRoundMatches < currentRoundMatches) {
+            currentFactor *= 2
+          }
+        }
+      }
+    })
+
+    return factors
+  }, [bracketData])
+
   // Get sorted round numbers
   const winnersRoundNumbers = Array.from(bracketData.winnersRounds.keys()).sort(
     (a, b) => a - b
@@ -99,21 +160,30 @@ export function BracketView({
     }
     // For single elimination, check last winners round
     const lastRound = bracketData.winnersRounds.get(bracketData.totalWinnersRounds)
-    if (lastRound && lastRound[0]?.result) {
+    if (lastRound && lastRound[0]?.result && !bracketData.hasLosers) {
       return lastRound[0].result.winner
     }
     return null
   }, [bracketData])
 
   // Calcule si un round peut être configuré (assignation d'équipes)
-  // Round 1: toujours en draft
+  // Round 1 Winners: toujours en draft
+  // Round 1 Losers: si Round 1 Winners terminé
   // Round N > 1: si tous les matchs du round N-1 sont terminés
   const canAssignRound = (roundNum: number, side: 'winners' | 'losers'): boolean => {
     const roundsMap = side === 'winners' ? bracketData.winnersRounds : bracketData.losersRounds
 
-    if (roundNum === 1) {
-      // Round 1: configurable en draft
+    if (side === 'winners' && roundNum === 1) {
+      // Round 1 Winners: configurable en draft
       return tournament.status === 'draft'
+    }
+
+    if (side === 'losers' && roundNum === 1) {
+      // Round 1 Losers: dépend généralement du Round 1 Winners
+      // On vérifie si le round 1 winners est terminé
+      const winnersRound1 = bracketData.winnersRounds.get(1)
+      const winnersRound1Complete = winnersRound1?.every(m => m.result !== null || m.is_bye) ?? false
+      return tournament.status === 'active' && winnersRound1Complete
     }
 
     // Round N > 1: vérifier que le round précédent est terminé
@@ -161,11 +231,16 @@ export function BracketView({
 
         <div className="overflow-x-auto pb-4">
           <div
-            className="bracket-grid flex gap-8 min-w-max"
-            style={{ alignItems: 'stretch' }}
+            className="bracket-grid flex min-w-max"
+            style={{
+              gap: '64px' // Must match COL_GAP used in SVG calc
+            }}
           >
+            {/* SVG Lines Overlay */}
+
             {winnersRoundNumbers.map((roundNum) => {
               const roundMatches = bracketData.winnersRounds.get(roundNum) || []
+
               return (
                 <BracketRound
                   key={`winners-${roundNum}`}
@@ -186,6 +261,7 @@ export function BracketView({
                   onPredict={onPredict}
                   onChangeFormat={onChangeFormat}
                   teams={teams}
+                  spacingFactor={spacingFactors.get(`winners-${roundNum}`)}
                 />
               )
             })}
@@ -206,6 +282,7 @@ export function BracketView({
                 onPredict={onPredict}
                 onChangeFormat={onChangeFormat}
                 teams={teams}
+                spacingFactor={spacingFactors.get(`winners-${bracketData.totalWinnersRounds}`)}
               />
             )}
           </div>
@@ -225,8 +302,11 @@ export function BracketView({
               className="bracket-grid flex gap-8 min-w-max"
               style={{ alignItems: 'stretch' }}
             >
+              {/* SVG Lines Overlay for Losers */}
+
               {losersRoundNumbers.map((roundNum) => {
                 const roundMatches = bracketData.losersRounds.get(roundNum) || []
+
                 return (
                   <BracketRound
                     key={`losers-${roundNum}`}
@@ -241,11 +321,13 @@ export function BracketView({
                     isAdmin={isAdmin}
                     tournamentStatus={tournament.status}
                     totalRounds={bracketData.totalLosersRounds}
+                    canAssignTeams={canAssignRound(roundNum, 'losers')}
                     onAssignTeam={onAssignTeam}
                     onEnterResult={onEnterResult}
                     onPredict={onPredict}
                     onChangeFormat={onChangeFormat}
                     teams={teams}
+                    spacingFactor={spacingFactors.get(`losers-${roundNum}`)}
                   />
                 )
               })}
@@ -258,5 +340,4 @@ export function BracketView({
     </div>
   )
 }
-
 

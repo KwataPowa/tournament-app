@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { FormEvent } from 'react'
 import type { Match, MatchFormat, Prediction } from '../types'
 import { Button } from './ui/Button'
@@ -92,10 +93,10 @@ export function PredictionModal({
 
   const isEditing = existingPrediction !== null
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop modal-backdrop-enter">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 modal-backdrop modal-backdrop-enter">
       {/* Backdrop click to close */}
-      <div className="absolute inset-0" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
       <div className="relative w-full max-w-md glass-modal rounded-2xl overflow-hidden modal-enter">
@@ -225,6 +226,7 @@ export function PredictionModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
