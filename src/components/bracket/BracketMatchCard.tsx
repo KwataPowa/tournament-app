@@ -14,6 +14,7 @@ type BracketMatchCardProps = {
   onPredict?: (match: Match) => void
   onEdit?: (match: Match) => void
   onChangeFormat?: (match: Match, format: MatchFormat) => void
+  teams?: { name: string; logo?: string }[]
 }
 
 const FORMAT_OPTIONS: MatchFormat[] = ['BO1', 'BO3', 'BO5', 'BO7']
@@ -29,6 +30,7 @@ export function BracketMatchCard({
   onPredict,
   onEdit,
   onChangeFormat,
+  teams,
 }: BracketMatchCardProps) {
   const [showFormatMenu, setShowFormatMenu] = useState(false)
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
@@ -176,16 +178,25 @@ export function BracketMatchCard({
           ${canAssignTeams ? 'cursor-pointer hover:bg-white/5' : ''}
         `}
       >
-        <span
-          className={`
-            text-sm font-medium truncate
-            ${match.team_a === 'TBD' ? 'text-gray-500 italic' : ''}
-            ${teamAWon ? 'text-green-400' : 'text-gray-300'}
-            ${teamBWon ? 'text-gray-500' : ''}
-          `}
-        >
-          {match.team_a === 'TBD' ? 'À définir' : match.team_a}
-        </span>
+        <div className="flex items-center gap-2 overflow-hidden">
+          {teams?.find(t => t.name === match.team_a)?.logo && (
+            <img
+              src={teams.find(t => t.name === match.team_a)?.logo}
+              alt={match.team_a}
+              className="w-5 h-5 object-contain flex-shrink-0"
+            />
+          )}
+          <span
+            className={`
+              text-sm font-medium truncate
+              ${match.team_a === 'TBD' ? 'text-gray-500 italic' : ''}
+              ${teamAWon ? 'text-green-400' : 'text-gray-300'}
+              ${teamBWon ? 'text-gray-500' : ''}
+            `}
+          >
+            {match.team_a === 'TBD' ? 'À définir' : match.team_a}
+          </span>
+        </div>
         {teamAWon && (
           <span className="text-green-400 text-xs font-bold">W</span>
         )}
@@ -203,16 +214,25 @@ export function BracketMatchCard({
           ${canAssignTeams ? 'cursor-pointer hover:bg-white/5' : ''}
         `}
       >
-        <span
-          className={`
-            text-sm font-medium truncate
-            ${match.team_b === 'TBD' ? 'text-gray-500 italic' : ''}
-            ${teamBWon ? 'text-green-400' : 'text-gray-300'}
-            ${teamAWon ? 'text-gray-500' : ''}
-          `}
-        >
-          {match.team_b === 'TBD' ? 'À définir' : match.team_b}
-        </span>
+        <div className="flex items-center gap-2 overflow-hidden">
+          {teams?.find(t => t.name === match.team_b)?.logo && (
+            <img
+              src={teams.find(t => t.name === match.team_b)?.logo}
+              alt={match.team_b}
+              className="w-5 h-5 object-contain flex-shrink-0"
+            />
+          )}
+          <span
+            className={`
+              text-sm font-medium truncate
+              ${match.team_b === 'TBD' ? 'text-gray-500 italic' : ''}
+              ${teamBWon ? 'text-green-400' : 'text-gray-300'}
+              ${teamAWon ? 'text-gray-500' : ''}
+            `}
+          >
+            {match.team_b === 'TBD' ? 'À définir' : match.team_b}
+          </span>
+        </div>
         {teamBWon && (
           <span className="text-green-400 text-xs font-bold">W</span>
         )}

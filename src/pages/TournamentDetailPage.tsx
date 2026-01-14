@@ -675,6 +675,7 @@ export function TournamentDetailPage() {
               onEnterResult={(match) => setResultMatch(match)}
               onPredict={(match) => setPredictionMatch(match)}
               onChangeFormat={handleChangeFormat}
+              teams={teams}
             />
           </Card>
         </div>

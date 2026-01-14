@@ -12,6 +12,7 @@ type BracketViewProps = {
   onEnterResult?: (match: Match) => void
   onPredict?: (match: Match) => void
   onChangeFormat?: (match: Match, format: MatchFormat) => void
+  teams?: { name: string; logo?: string }[]
 }
 
 export function BracketView({
@@ -23,6 +24,7 @@ export function BracketView({
   onEnterResult,
   onPredict,
   onChangeFormat,
+  teams,
 }: BracketViewProps) {
   // Create prediction lookup map
   const predictionsByMatch = useMemo(() => {
@@ -183,6 +185,7 @@ export function BracketView({
                   onEnterResult={onEnterResult}
                   onPredict={onPredict}
                   onChangeFormat={onChangeFormat}
+                  teams={teams}
                 />
               )
             })}
@@ -202,6 +205,7 @@ export function BracketView({
                 onEnterResult={onEnterResult}
                 onPredict={onPredict}
                 onChangeFormat={onChangeFormat}
+                teams={teams}
               />
             )}
           </div>
@@ -241,6 +245,7 @@ export function BracketView({
                     onEnterResult={onEnterResult}
                     onPredict={onPredict}
                     onChangeFormat={onChangeFormat}
+                    teams={teams}
                   />
                 )
               })}

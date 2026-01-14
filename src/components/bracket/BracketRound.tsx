@@ -14,6 +14,7 @@ type BracketRoundProps = {
   onEnterResult?: (match: Match) => void
   onPredict?: (match: Match) => void
   onChangeFormat?: (match: Match, format: MatchFormat) => void
+  teams?: { name: string; logo?: string }[]
 }
 
 export function BracketRound({
@@ -31,6 +32,7 @@ export function BracketRound({
   onEnterResult,
   onPredict,
   onChangeFormat,
+  teams,
 }: BracketRoundProps) {
   // Calculate spacing multiplier based on round
   // First round: normal spacing, subsequent rounds: exponentially more spacing
@@ -67,6 +69,7 @@ export function BracketRound({
             onEnterResult={onEnterResult}
             onPredict={onPredict}
             onChangeFormat={onChangeFormat}
+            teams={teams}
           />
         ))}
       </div>

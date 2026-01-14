@@ -36,8 +36,8 @@ export function TeamAssignModal({
   // Filter out already assigned teams (but include current team if editing)
   const teamsToShow = isSelectionMode
     ? availableTeams.filter(
-        (team) => !assignedTeams.includes(team.name) || team.name === currentTeam
-      )
+      (team) => !assignedTeams.includes(team.name) || team.name === currentTeam
+    )
     : []
 
   const handleSubmit = async (e: FormEvent) => {
@@ -177,7 +177,7 @@ export function TeamAssignModal({
                           <img
                             src={team.logo}
                             alt={team.name}
-                            className="w-8 h-8 rounded-lg object-cover bg-white/10"
+                            className="w-8 h-8 rounded-lg object-contain"
                             onError={(e) => {
                               (e.target as HTMLImageElement).style.display = 'none'
                             }}
