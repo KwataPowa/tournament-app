@@ -151,26 +151,47 @@ export function TournamentDetailPage() {
   const getAvailableTeamsForRound = (match: Match | null): typeof teams => {
     if (!match) return []
 
-    // Round 1: toutes les équipes du tournoi
-    if (match.round === 1) {
+    // 1. Initial Round (Winners Bracket Round 1): toutes les équipes du tournoi
+    if (match.round === 1 && match.bracket_side === 'winners') {
       return teams
     }
 
-    // Rounds suivants: récupérer les vainqueurs du round précédent
-    const prevRound = match.round - 1
-    const prevRoundMatches = matches.filter(
-      m => m.round === prevRound &&
-        m.bracket_side === match.bracket_side &&
-        m.result !== null
+    // 2. Feeder Logic (Pour tous les autres rounds)
+    // Trouver les matchs qui alimentent ce match (Winner -> Next, Loser -> Drop)
+    const feeders = matches.filter(m =>
+      m.next_match_id === match.id ||
+      m.next_loser_match_id === match.id
     )
 
-    // Extraire les vainqueurs
-    const winners = prevRoundMatches
-      .map(m => m.result?.winner)
-      .filter((w): w is string => w !== undefined)
+    const candidates = new Set<string>()
 
-    // Convertir en format Team (avec logo si disponible)
-    return winners.map(name => {
+    feeders.forEach(feeder => {
+      // Cas A: Le vainqueur avance (Winner Bracket ou progression normale)
+      if (feeder.next_match_id === match.id) {
+        if (feeder.is_bye) {
+          // Si BYE, l'équipe A avance automatiquement
+          if (feeder.team_a && feeder.team_a !== 'TBD') {
+            candidates.add(feeder.team_a)
+          }
+        }
+        else if (feeder.result?.winner) {
+          candidates.add(feeder.result.winner)
+        }
+      }
+
+      // Cas B: Le perdant descend (Drop vers Losers Bracket)
+      if (feeder.next_loser_match_id === match.id) {
+        if (feeder.result?.winner) {
+          // Identifier le perdant
+          const loser = feeder.result.winner === feeder.team_a ? feeder.team_b : feeder.team_a
+          if (loser && loser !== 'TBD' && loser !== 'BYE') {
+            candidates.add(loser)
+          }
+        }
+      }
+    })
+
+    return Array.from(candidates).map(name => {
       const existingTeam = teams.find(t => t.name === name)
       return existingTeam || { name }
     })
