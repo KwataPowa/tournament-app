@@ -46,7 +46,7 @@ export function CreateTournamentPage() {
 
   const [name, setName] = useState('')
   const [format, setFormat] = useState<TournamentFormat>('league')
-  const [homeAndAway, setHomeAndAway] = useState(true)
+  const [homeAndAway, setHomeAndAway] = useState(false)
   const [defaultMatchFormat, setDefaultMatchFormat] = useState<MatchFormat>('BO3')
   const [teamInputs, setTeamInputs] = useState<TeamInput[]>([
     { id: crypto.randomUUID(), name: '', logo: '' },
