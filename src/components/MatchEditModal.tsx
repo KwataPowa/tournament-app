@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import type { FormEvent } from 'react'
-import type { Match, MatchFormat } from '../types'
+import type { Match, MatchFormat, MatchResult } from '../types'
 import { Button } from './ui/Button'
+import { Trophy } from 'lucide-react'
 
 type MatchEditModalProps = {
   match: Match | null // null = création
@@ -11,6 +12,7 @@ type MatchEditModalProps = {
   defaultRound?: number
   existingMatches: Match[]
   homeAndAway: boolean
+  tournamentStatus?: 'draft' | 'active' | 'completed'
   onSave: (data: {
     team_a: string
     team_b: string
@@ -18,6 +20,7 @@ type MatchEditModalProps = {
     match_format: MatchFormat
     start_time?: string | null
   }) => Promise<void>
+  onSaveResult?: (result: MatchResult) => Promise<void>
   onDelete?: () => Promise<void>
   onClose: () => void
 }
@@ -29,6 +32,29 @@ const MATCH_FORMATS: { value: MatchFormat; label: string }[] = [
   { value: 'BO7', label: 'BO7' },
 ]
 
+// Génère les scores possibles pour un format donné
+function getPossibleScores(format: MatchFormat, winner: 'team_a' | 'team_b'): string[] {
+  const winsNeeded: Record<MatchFormat, number> = {
+    BO1: 1,
+    BO3: 2,
+    BO5: 3,
+    BO7: 4,
+  }
+
+  const wins = winsNeeded[format]
+  const scores: string[] = []
+
+  for (let loserWins = 0; loserWins < wins; loserWins++) {
+    if (winner === 'team_a') {
+      scores.push(`${wins}-${loserWins}`)
+    } else {
+      scores.push(`${loserWins}-${wins}`)
+    }
+  }
+
+  return scores
+}
+
 export function MatchEditModal({
   match,
   teams,
@@ -36,7 +62,9 @@ export function MatchEditModal({
   defaultRound = 1,
   existingMatches,
   homeAndAway,
+  tournamentStatus = 'draft',
   onSave,
+  onSaveResult,
   onDelete,
   onClose,
 }: MatchEditModalProps) {
@@ -58,7 +86,18 @@ export function MatchEditModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // État pour le résultat
+  const [resultWinner, setResultWinner] = useState<'team_a' | 'team_b' | ''>(
+    match?.result?.winner === match?.team_a ? 'team_a' :
+      match?.result?.winner === match?.team_b ? 'team_b' : ''
+  )
+  const [resultScore, setResultScore] = useState(match?.result?.score || '')
+
   const isEdit = match !== null
+  const canEditResult = tournamentStatus === 'active' && isEdit && onSaveResult && teamA && teamB
+
+  // Scores possibles basés sur le format et le vainqueur
+  const possibleScores = resultWinner ? getPossibleScores(matchFormat, resultWinner) : []
 
   useEffect(() => {
     if (match) {
@@ -67,8 +106,21 @@ export function MatchEditModal({
       setRound(match.round)
       setMatchFormat(match.match_format)
       setStartTime(formatForInput(match.start_time))
+      // Résultat
+      setResultWinner(
+        match.result?.winner === match.team_a ? 'team_a' :
+          match.result?.winner === match.team_b ? 'team_b' : ''
+      )
+      setResultScore(match.result?.score || '')
     }
   }, [match])
+
+  // Reset score quand le vainqueur change
+  const handleWinnerChange = (winner: 'team_a' | 'team_b') => {
+    setResultWinner(winner)
+    const newScores = getPossibleScores(matchFormat, winner)
+    setResultScore(newScores[0] || '')
+  }
 
   // Vérifie si un match est un doublon
   const isDuplicateMatch = (a: string, b: string): string | null => {
@@ -125,6 +177,7 @@ export function MatchEditModal({
 
     setLoading(true)
     try {
+      // Sauvegarder les infos du match
       await onSave({
         team_a: teamA,
         team_b: teamB,
@@ -132,6 +185,15 @@ export function MatchEditModal({
         match_format: matchFormat,
         start_time: startTime ? new Date(startTime).toISOString() : null,
       })
+
+      // Sauvegarder le résultat si rempli
+      if (canEditResult && resultWinner && resultScore && onSaveResult) {
+        await onSaveResult({
+          winner: resultWinner === 'team_a' ? teamA : teamB,
+          score: resultScore,
+        })
+      }
+
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur')
@@ -326,6 +388,84 @@ export function MatchEditModal({
               className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-mono transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 [color-scheme:dark]"
             />
           </div>
+
+          {/* Section Résultat (seulement en mode actif) */}
+          {canEditResult && (
+            <div className="border-t border-white/10 pt-6 space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Trophy className="w-5 h-5 text-amber-400" />
+                <h3 className="text-sm font-semibold text-white">Résultat du match</h3>
+                {match?.result && (
+                  <span className="text-xs text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">
+                    Déjà joué
+                  </span>
+                )}
+              </div>
+
+              {/* Sélection du vainqueur */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Vainqueur
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleWinnerChange('team_a')}
+                    className={`
+                      py-3 px-4 rounded-xl font-semibold transition-all duration-200
+                      ${resultWinner === 'team_a'
+                        ? 'bg-green-500/20 border-2 border-green-500 text-green-400'
+                        : 'bg-white/5 border-2 border-white/10 text-gray-300 hover:border-white/20'
+                      }
+                    `}
+                  >
+                    {teamA}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleWinnerChange('team_b')}
+                    className={`
+                      py-3 px-4 rounded-xl font-semibold transition-all duration-200
+                      ${resultWinner === 'team_b'
+                        ? 'bg-green-500/20 border-2 border-green-500 text-green-400'
+                        : 'bg-white/5 border-2 border-white/10 text-gray-300 hover:border-white/20'
+                      }
+                    `}
+                  >
+                    {teamB}
+                  </button>
+                </div>
+              </div>
+
+              {/* Sélection du score */}
+              {resultWinner && (
+                <div className="animate-slide-up">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Score
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {possibleScores.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setResultScore(s)}
+                        className={`
+                          py-2 px-4 rounded-lg font-mono font-bold transition-all duration-200
+                          ${resultScore === s
+                            ? 'bg-amber-500/20 border-2 border-amber-500 text-amber-400'
+                            : 'bg-white/5 border-2 border-white/10 text-gray-400 hover:border-white/20'
+                          }
+                        `}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
 
           {/* Error message */}
           {error && (

@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuthContext } from '../lib/AuthContext'
-import { getTournamentWithMatches, updateTournament, deleteTournament } from '../services/tournaments'
-import { createMatch, updateMatch, deleteMatch, enterMatchResult } from '../services/matches'
+import { getTournamentWithMatches, updateTournament, deleteTournament, removeParticipant } from '../services/tournaments'
+import { createMatch, updateMatch, deleteMatch, enterMatchResult, updateMatchResultRecursive } from '../services/matches'
 import { assignTeamToMatch, removeTeamFromMatch } from '../services/brackets'
 import { getUserPredictionsForTournament, createOrUpdatePrediction } from '../services/predictions'
 import { getLeaderboard, type LeaderboardEntry } from '../services/leaderboard'
@@ -30,7 +30,8 @@ import {
   Users,
   Calendar,
   Plus,
-  ArrowLeft
+  ArrowLeft,
+  Play
 } from 'lucide-react'
 
 export function TournamentDetailPage() {
@@ -259,6 +260,23 @@ export function TournamentDetailPage() {
     }
   }
 
+  // Activer un tournoi en draft pour permettre les pronostics
+  const handleActivateTournament = async () => {
+    if (!tournament || !isAdmin) return
+
+    setActionLoading(true)
+    try {
+      const updated = await updateTournament(tournament.id, { status: 'active' })
+      setTournament(updated)
+      // Charger le leaderboard maintenant que le tournoi est actif
+      loadLeaderboard()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erreur lors de l\'activation')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const handleSaveMatch = async (data: {
     team_a: string
     team_b: string
@@ -304,13 +322,38 @@ export function TournamentDetailPage() {
     setEditingMatch(null)
   }
 
-  const handleSaveResult = async (result: MatchResult) => {
-    if (!resultMatch) return
-    const updated = await enterMatchResult(resultMatch.id, result)
-    setMatches((prev) =>
-      prev.map((m) => (m.id === updated.id ? updated : m))
-    )
+  const handleSaveResult = async (result: MatchResult, matchOverride?: Match) => {
+    // Utiliser le match passé en paramètre ou resultMatch
+    const targetMatch = matchOverride || resultMatch || editingMatch
+    if (!targetMatch) return
+
+    // Pour les brackets avec correction: utiliser la RPC avec effet domino
+    const isCorrection = targetMatch.result !== null
+    if (isBracketFormat && isCorrection) {
+      await updateMatchResultRecursive(targetMatch.id, result.winner, result.score)
+      // Recharger tous les matchs car plusieurs peuvent avoir changé
+      const data = await getTournamentWithMatches(tournament!.id)
+      setMatches(data.matches)
+      // Recharger aussi les predictions car certaines ont pu être supprimées
+      if (user?.id) {
+        const userPredictions = await getUserPredictionsForTournament(tournament!.id, user.id)
+        setPredictions(userPredictions)
+      }
+    } else {
+      const updated = await enterMatchResult(targetMatch.id, result)
+      setMatches((prev) =>
+        prev.map((m) => (m.id === updated.id ? updated : m))
+      )
+    }
     // Recharger le leaderboard après saisie du résultat (les points sont mis à jour)
+    loadLeaderboard()
+  }
+
+  // Exclure un participant (admin only)
+  const handleRemoveParticipant = async (userId: string) => {
+    if (!tournament) return
+    await removeParticipant(tournament.id, userId)
+    // Recharger le leaderboard
     loadLeaderboard()
   }
 
@@ -534,6 +577,12 @@ export function TournamentDetailPage() {
             </h2>
             <div className="flex items-center gap-3">
               <div className="text-sm text-gray-400 flex-1 flex flex-col items-center justify-center">
+                {tournament.status === 'draft' && (
+                  <span className="flex items-center gap-2 text-amber-400">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    Brouillon
+                  </span>
+                )}
                 {tournament.status === 'active' && (
                   <span className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -546,6 +595,20 @@ export function TournamentDetailPage() {
                   </span>
                 )}
               </div>
+
+              {tournament.status === 'draft' && (
+                <Button
+                  onClick={handleActivateTournament}
+                  disabled={actionLoading}
+                  variant="primary"
+                  size="sm"
+                  title="Lancer le tournoi"
+                  className="flex-1"
+                  icon={<Play className="w-4 h-4" />}
+                >
+                  Lancer
+                </Button>
+              )}
 
               <Button
                 onClick={handleDeleteTournament}
@@ -587,7 +650,13 @@ export function TournamentDetailPage() {
               <Trophy className="w-5 h-5 text-yellow-400" /> Classement
             </h2>
             <div className="overflow-hidden rounded-lg border border-white/5 bg-black/20">
-              <LeaderboardTable entries={leaderboard} loading={leaderboardLoading} />
+              <LeaderboardTable
+                entries={leaderboard}
+                loading={leaderboardLoading}
+                isAdmin={isAdmin}
+                adminId={tournament?.admin_id}
+                onRemoveParticipant={handleRemoveParticipant}
+              />
             </div>
           </Card>
 
@@ -617,7 +686,13 @@ export function TournamentDetailPage() {
               <Trophy className="w-5 h-5 text-yellow-400" /> Classement des joueurs
             </h2>
             <div className="overflow-hidden rounded-lg border border-white/5 bg-black/20">
-              <LeaderboardTable entries={leaderboard} loading={leaderboardLoading} />
+              <LeaderboardTable
+                entries={leaderboard}
+                loading={leaderboardLoading}
+                isAdmin={isAdmin}
+                adminId={tournament?.admin_id}
+                onRemoveParticipant={handleRemoveParticipant}
+              />
             </div>
           </Card>
 
@@ -713,7 +788,6 @@ export function TournamentDetailPage() {
                               teams={teams}
                               tournamentStatus={tournament.status}
                               onEdit={openEditMatch}
-                              onEnterResult={setResultMatch}
                               onPredict={setPredictionMatch}
                               onChangeFormat={handleChangeFormat}
                             />
@@ -738,7 +812,9 @@ export function TournamentDetailPage() {
           defaultRound={addingToRound}
           existingMatches={matches}
           homeAndAway={tournament.home_and_away}
+          tournamentStatus={tournament.status}
           onSave={handleSaveMatch}
+          onSaveResult={handleSaveResult}
           onDelete={editingMatch ? handleDeleteMatch : undefined}
           onClose={closeModal}
         />
@@ -749,6 +825,7 @@ export function TournamentDetailPage() {
           match={resultMatch}
           onSave={handleSaveResult}
           onClose={() => setResultMatch(null)}
+          isBracket={isBracketFormat}
         />
       )}
 

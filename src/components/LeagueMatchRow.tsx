@@ -8,7 +8,6 @@ type LeagueMatchRowProps = {
     isAdmin: boolean
     tournamentStatus: 'draft' | 'active' | 'completed'
     teams?: { name: string; logo?: string }[]
-    onEnterResult?: (match: Match) => void
     onPredict?: (match: Match) => void
     onEdit?: (match: Match) => void
     onChangeFormat?: (match: Match, format: MatchFormat) => void
@@ -22,7 +21,6 @@ export function LeagueMatchRow({
     isAdmin,
     tournamentStatus,
     teams,
-    onEnterResult,
     onPredict,
     onEdit,
     onChangeFormat,
@@ -36,21 +34,22 @@ export function LeagueMatchRow({
     const isClickable = (!isBye && !isTBD) || (tournamentStatus === 'draft' && isAdmin)
 
     // Actions available
-    // Pronostics disponibles dès qu'un match a ses équipes définies
+    // Pronostics disponibles dès qu'un match a ses équipes définies (avant résultat)
     const canPredict = !isTBD && !isBye && !hasResult && onPredict
-    const canEnterResult = !isTBD && !isBye && !hasResult && isAdmin && onEnterResult
 
     const handleRowClick = () => {
         if (isBye) return
 
-        if (tournamentStatus === 'draft' && isAdmin && onEdit) {
+        // L'admin peut toujours éditer le match (équipes, format, résultat, etc.)
+        if (isAdmin && onEdit) {
             onEdit(match)
             return
         }
 
         if (isTBD) return
 
-        if (tournamentStatus === 'active' && !isAdmin && !hasResult && onPredict) {
+        // Les non-admins peuvent pronostiquer avant le résultat
+        if (!isAdmin && !hasResult && onPredict) {
             onPredict(match)
         }
     }
@@ -217,19 +216,7 @@ export function LeagueMatchRow({
                             </button>
                         )}
 
-                        {canEnterResult && (
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    onEnterResult!(match)
-                                }}
-                                className="px-3 py-1.5 text-xs font-medium rounded-md bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors border border-amber-500/20 cursor-pointer"
-                            >
-                                Résultat
-                            </button>
-                        )}
-
-                        {!hasResult && !isTBD && !canPredict && !canEnterResult && (
+                        {!hasResult && !isTBD && !canPredict && (
                             <div className="flex items-center gap-1.5 text-gray-500 bg-white/5 px-2 py-1 rounded">
                                 <Lock className="w-3 h-3" />
                                 <span className="text-[10px] uppercase font-medium">À venir</span>

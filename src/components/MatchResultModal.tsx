@@ -3,11 +3,14 @@ import { createPortal } from 'react-dom'
 import type { FormEvent } from 'react'
 import type { Match, MatchFormat, MatchResult } from '../types'
 import { Button } from './ui/Button'
+import { AlertTriangle } from 'lucide-react'
 
 type MatchResultModalProps = {
   match: Match
   onSave: (result: MatchResult) => Promise<void>
   onClose: () => void
+  /** Indique si c'est un match de bracket (affiche l'avertissement effet domino) */
+  isBracket?: boolean
 }
 
 // Génère les scores possibles pour un format donné
@@ -39,6 +42,7 @@ export function MatchResultModal({
   match,
   onSave,
   onClose,
+  isBracket = false,
 }: MatchResultModalProps) {
   const [winner, setWinner] = useState<'team_a' | 'team_b' | ''>(
     match.result?.winner === match.team_a ? 'team_a' :
@@ -47,6 +51,9 @@ export function MatchResultModal({
   const [score, setScore] = useState(match.result?.score || '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Détecter si c'est une correction (résultat existe déjà)
+  const isCorrection = match.result !== null
 
   const possibleScores = winner ? getPossibleScores(match.match_format, winner) : []
 
@@ -99,12 +106,20 @@ export function MatchResultModal({
         {/* Header */}
         <div className="relative px-6 py-5 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
-              <span className="text-lg">📋</span>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg ${
+              isCorrection
+                ? 'bg-gradient-to-br from-orange-500 to-red-500 shadow-orange-500/25'
+                : 'bg-gradient-to-br from-amber-500 to-orange-500 shadow-amber-500/25'
+            }`}>
+              {isCorrection ? (
+                <AlertTriangle className="w-5 h-5 text-white" />
+              ) : (
+                <span className="text-lg">📋</span>
+              )}
             </div>
             <div>
               <h2 className="text-lg font-semibold text-white">
-                Entrer le résultat
+                {isCorrection ? 'Corriger le résultat' : 'Entrer le résultat'}
               </h2>
               <p className="text-sm text-gray-400">
                 {match.team_a} vs {match.team_b}
@@ -190,11 +205,23 @@ export function MatchResultModal({
             </div>
           )}
 
+          {/* Avertissement effet domino (brackets uniquement) */}
+          {isCorrection && isBracket && (
+            <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg animate-slide-up">
+              <p className="text-sm text-orange-300 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>
+                  <strong>Attention :</strong> modifier ce résultat annulera les pronostics des matchs suivants si les équipes qualifiées changent.
+                </span>
+              </p>
+            </div>
+          )}
+
           {/* Error message */}
           {error && (
             <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg animate-slide-up">
               <p className="text-sm text-red-400 flex items-center gap-2">
-                <span>⚠️</span> {error}
+                <AlertTriangle className="w-4 h-4" /> {error}
               </p>
             </div>
           )}
@@ -207,7 +234,7 @@ export function MatchResultModal({
               isLoading={loading}
               className="flex-1"
             >
-              Enregistrer le résultat
+              {isCorrection ? 'Corriger le résultat' : 'Enregistrer le résultat'}
             </Button>
             <Button
               type="button"

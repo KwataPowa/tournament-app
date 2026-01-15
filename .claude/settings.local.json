@@ -8,7 +8,9 @@
       "Bash(del \"E:\\\\Codes\\\\tournament-app\\\\src\\\\lib\\\\leagueGenerator.ts\")",
       "Bash(npx tsc:*)",
       "mcp__ide__getDiagnostics",
-      "Skill(frontend-design)"
+      "Skill(frontend-design)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

@@ -175,3 +175,18 @@ export async function joinTournament(tournamentId: string, userId: string): Prom
     throw new Error(error.message)
   }
 }
+
+/**
+ * Exclure un participant d'un tournoi (admin only)
+ * Supprime ses pronostics et son entrée participant
+ */
+export async function removeParticipant(tournamentId: string, userId: string): Promise<void> {
+  const { error } = await supabase.rpc('remove_tournament_participant', {
+    p_tournament_id: tournamentId,
+    p_user_id: userId,
+  })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+}

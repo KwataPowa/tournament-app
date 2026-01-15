@@ -76,3 +76,26 @@ export async function enterMatchResult(
 
   return match as Match
 }
+
+/**
+ * Corrige un résultat de match avec effet domino sur les matchs suivants (brackets)
+ * - Met à jour le résultat du match
+ * - Propage le changement aux matchs suivants si les équipes qualifiées changent
+ * - Supprime les pronostics des matchs impactés (contexte changé)
+ * - Recalcule les points et rangs
+ */
+export async function updateMatchResultRecursive(
+  matchId: string,
+  newWinner: string,
+  newScore: string
+): Promise<void> {
+  const { error } = await supabase.rpc('update_match_result_recursive', {
+    p_match_id: matchId,
+    p_new_winner: newWinner,
+    p_new_score: newScore,
+  })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+}

@@ -62,15 +62,22 @@ export function BracketMatchCard({
     }
   }
 
-  // Pronostics disponibles dès qu'un match a ses équipes définies
+  // Pronostics disponibles dès qu'un match a ses équipes définies (avant résultat)
   const canPredict = !isTBD && !isBye && !hasResult && onPredict
-  const canEnterResult = !isTBD && !isBye && !hasResult && isAdmin && onEnterResult
+  // Admin peut entrer/modifier le résultat à tout moment
+  const canEnterResult = !isTBD && !isBye && isAdmin && onEnterResult
 
   const handleCardClick = () => {
     if (isBye) return
     if (isTBD) return
 
-    // Les utilisateurs non-admin peuvent pronostiquer en cliquant sur la carte
+    // L'admin peut entrer/modifier le résultat en cliquant
+    if (isAdmin && onEnterResult) {
+      onEnterResult(match)
+      return
+    }
+
+    // Les utilisateurs non-admin peuvent pronostiquer avant le résultat
     if (!isAdmin && !hasResult && onPredict) {
       onPredict(match)
     }
@@ -278,7 +285,7 @@ export function BracketMatchCard({
           </div>
         </div>
 
-        {/* Action buttons */}
+        {/* Action buttons (avant résultat seulement) */}
         {!hasResult && !isTBD && !isBye && (
           <div className="px-2 py-1.5 border-t border-white/5 flex gap-1">
             {/* Bouton pronostiquer */}

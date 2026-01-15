@@ -1,13 +1,44 @@
+import { useState } from 'react'
 import type { LeaderboardEntry } from '../services/leaderboard'
-import { Trophy, Medal } from 'lucide-react'
+import { Trophy, Medal, Trash2, Loader2 } from 'lucide-react'
 import { AvatarDisplay } from './AvatarDisplay'
 
 type LeaderboardTableProps = {
   entries: LeaderboardEntry[]
   loading?: boolean
+  /** Si l'utilisateur courant est admin du tournoi */
+  isAdmin?: boolean
+  /** ID de l'admin du tournoi (pour empêcher son exclusion) */
+  adminId?: string
+  /** Callback pour exclure un participant */
+  onRemoveParticipant?: (userId: string, username: string) => Promise<void>
 }
 
-export function LeaderboardTable({ entries, loading }: LeaderboardTableProps) {
+export function LeaderboardTable({
+  entries,
+  loading,
+  isAdmin = false,
+  adminId,
+  onRemoveParticipant,
+}: LeaderboardTableProps) {
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null)
+
+  const handleRemove = async (userId: string, username: string) => {
+    if (!onRemoveParticipant) return
+
+    const confirmed = window.confirm(
+      `Voulez-vous vraiment exclure ${username} ? Ses pronostics seront effacés.`
+    )
+    if (!confirmed) return
+
+    setRemovingUserId(userId)
+    try {
+      await onRemoveParticipant(userId, username)
+    } finally {
+      setRemovingUserId(null)
+    }
+  }
+
   if (loading) {
     return (
       <div className="text-center py-12">
@@ -161,6 +192,11 @@ export function LeaderboardTable({ entries, loading }: LeaderboardTableProps) {
               <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">
                 Points
               </th>
+              {isAdmin && onRemoveParticipant && (
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider w-20">
+                  Actions
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5" data-stagger>
@@ -206,6 +242,26 @@ export function LeaderboardTable({ entries, loading }: LeaderboardTableProps) {
                     <span className="text-xs text-gray-500 font-medium">pts</span>
                   </div>
                 </td>
+                {isAdmin && onRemoveParticipant && (
+                  <td className="px-4 py-3.5 whitespace-nowrap text-center">
+                    {entry.user_id !== adminId ? (
+                      <button
+                        onClick={() => handleRemove(entry.user_id, entry.username)}
+                        disabled={removingUserId === entry.user_id}
+                        className="p-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={`Exclure ${entry.username}`}
+                      >
+                        {removingUserId === entry.user_id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-gray-600 italic">Admin</span>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
