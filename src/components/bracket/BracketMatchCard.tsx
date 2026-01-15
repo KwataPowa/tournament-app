@@ -23,13 +23,11 @@ export function BracketMatchCard({
   match,
   prediction,
   isAdmin,
-  tournamentStatus,
   canAssignTeams: canAssignFromParent,
   onAssignTeam,
   onEnterResult,
   onPredict,
   onChangeFormat,
-  onEdit,
   teams,
 }: BracketMatchCardProps) {
   const [showFormatMenu, setShowFormatMenu] = useState(false)
@@ -52,7 +50,7 @@ export function BracketMatchCard({
   const isTBD = match.team_a === 'TBD' || match.team_b === 'TBD'
   const hasResult = match.result !== null
   const isBye = match.is_bye
-  const isClickable = (!isBye && !isTBD) || (tournamentStatus === 'draft' && isAdmin)
+  const isClickable = (!isBye && !isTBD) || isAdmin
 
   // L'assignation est contrôlée par le parent (vérifie si le round précédent est terminé)
   const canAssignTeams = canAssignFromParent && isAdmin && !hasResult
@@ -64,23 +62,16 @@ export function BracketMatchCard({
     }
   }
 
-  // Actions disponibles
-  const canPredict = tournamentStatus === 'active' && !isTBD && !isBye && !hasResult && onPredict
-  const canEnterResult = tournamentStatus === 'active' && !isTBD && !isBye && !hasResult && isAdmin && onEnterResult
+  // Pronostics disponibles dès qu'un match a ses équipes définies
+  const canPredict = !isTBD && !isBye && !hasResult && onPredict
+  const canEnterResult = !isTBD && !isBye && !hasResult && isAdmin && onEnterResult
 
   const handleCardClick = () => {
     if (isBye) return
-
-    // Draft mode admin edit
-    if (tournamentStatus === 'draft' && isAdmin && onEdit) {
-      onEdit(match)
-      return
-    }
-
     if (isTBD) return
 
     // Les utilisateurs non-admin peuvent pronostiquer en cliquant sur la carte
-    if (tournamentStatus === 'active' && !isAdmin && !hasResult && onPredict) {
+    if (!isAdmin && !hasResult && onPredict) {
       onPredict(match)
     }
   }
@@ -107,7 +98,7 @@ export function BracketMatchCard({
         transition-all duration-200 min-w-[200px] min-h-24
         ${isBye ? 'border-dashed border-white/10 bg-white/[0.02]' : 'border-white/10 bg-white/5'}
         ${isBye ? 'border-dashed border-white/10 bg-white/[0.02]' : 'border-white/5 bg-white/5'}
-        ${isClickable && tournamentStatus === 'active' ? 'hover:border-violet-500/30 hover:bg-white/[0.07]' : ''}
+        ${isClickable ? 'hover:border-violet-500/30 hover:bg-white/[0.07]' : ''}
         ${hasResult ? 'border-green-500/20' : ''}
       `}
       onClick={handleCardClick}
@@ -118,8 +109,8 @@ export function BracketMatchCard({
           M{(match.bracket_position ?? 0) + 1}
         </span>
 
-        {/* Format badge (BO) - clickable in draft mode for admin */}
-        {tournamentStatus === 'draft' && isAdmin && onChangeFormat ? (
+        {/* Format badge (BO) - clickable for admin */}
+        {isAdmin && onChangeFormat ? (
           <>
             <button
               ref={buttonRef}
@@ -287,8 +278,8 @@ export function BracketMatchCard({
           </div>
         </div>
 
-        {/* Action buttons for active tournament */}
-        {tournamentStatus === 'active' && !hasResult && !isTBD && !isBye && (
+        {/* Action buttons */}
+        {!hasResult && !isTBD && !isBye && (
           <div className="px-2 py-1.5 border-t border-white/5 flex gap-1">
             {/* Bouton pronostiquer */}
             {canPredict && !prediction && (

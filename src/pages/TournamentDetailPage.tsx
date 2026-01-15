@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuthContext } from '../lib/AuthContext'
-import { getTournamentWithMatches, updateTournament, deleteTournament, calculateExpectedMatches } from '../services/tournaments'
+import { getTournamentWithMatches, updateTournament, deleteTournament } from '../services/tournaments'
 import { createMatch, updateMatch, deleteMatch, enterMatchResult } from '../services/matches'
 import { assignTeamToMatch, removeTeamFromMatch } from '../services/brackets'
 import { getUserPredictionsForTournament, createOrUpdatePrediction } from '../services/predictions'
@@ -24,7 +24,6 @@ import {
   Link as LinkIcon,
   Copy,
   Settings,
-  Rocket,
   Trash2,
   Trophy,
   Medal,
@@ -101,42 +100,8 @@ export function TournamentDetailPage() {
   // Utiliser les équipes du tournoi (normalisées pour rétrocompatibilité)
   const teams = normalizeTeams(tournament?.teams as (string | { name: string; logo?: string })[])
 
-  // Calculer le nombre de matchs attendu (pour les ligues uniquement)
-  const expectedMatches = tournament && !isBracketFormat
-    ? calculateExpectedMatches(teams.length, tournament.home_and_away)
-    : 0
   const currentMatches = matches.length
-  const matchesComplete = !isBracketFormat ? currentMatches === expectedMatches : true
 
-  // Pour les brackets: vérifier que les équipes sont bien assignées
-  const bracketReady = useMemo(() => {
-    if (!isBracketFormat) return true
-    // Vérifier que tous les matchs du premier round ont leurs équipes
-    const firstRoundMatches = matches.filter(m => m.round === 1 && m.bracket_side === 'winners')
-    return firstRoundMatches.every(m =>
-      m.is_bye || (m.team_a !== 'TBD' && m.team_b !== 'TBD')
-    )
-  }, [matches, isBracketFormat])
-
-  // Le tournoi peut démarrer si les matchs sont complets (ligue) ou le bracket est prêt
-  const canStartTournament = isBracketFormat ? bracketReady : matchesComplete
-
-  // Progression pour le bracket (Slots remplis / Total slots)
-  const bracketProgress = useMemo(() => {
-    if (!isBracketFormat) return { total: 0, current: 0 }
-    const firstRoundMatches = matches.filter(m => m.round === 1 && m.bracket_side === 'winners')
-    const total = firstRoundMatches.length * 2
-    if (total === 0) return { total: 0, current: 0 }
-    const current = firstRoundMatches.reduce((acc, m) => {
-      // Compter les équipes assignées (non TBD)
-      // Si c'est un BYE, on considère que le slot vide est "traité" mais pour l'affichage "Slots"
-      // on veut probablement savoir combien d'équipes réelles sont là.
-      // Simplification : on compte tout ce qui n'est pas TBD.
-      // Note: Pour un match BYE, team_b est souvent vide ou null, ou handled upstream.
-      return acc + (m.team_a !== 'TBD' ? 1 : 0) + (m.team_b !== 'TBD' ? 1 : 0)
-    }, 0)
-    return { total, current }
-  }, [matches, isBracketFormat])
 
   // Pour les brackets: calculer les équipes déjà assignées dans un round donné
   const getAssignedTeamsInRound = (round: number, bracketSide: string | null) => {
@@ -275,29 +240,6 @@ export function TournamentDetailPage() {
     }
   }
 
-  const handleStartTournament = async () => {
-    if (!tournament || !isAdmin) return
-
-    // Vérifier que le tournoi peut démarrer
-    if (!canStartTournament) {
-      if (isBracketFormat) {
-        alert('Toutes les équipes du premier tour doivent être assignées avant de lancer le tournoi.')
-      } else {
-        alert(`Il manque des matchs ! Tu as ${currentMatches}/${expectedMatches} matchs.`)
-      }
-      return
-    }
-
-    setActionLoading(true)
-    try {
-      const updated = await updateTournament(tournament.id, { status: 'active' })
-      setTournament(updated)
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erreur')
-    } finally {
-      setActionLoading(false)
-    }
-  }
 
   const handleDeleteTournament = async () => {
     if (!tournament || !isAdmin) return
@@ -540,55 +482,6 @@ export function TournamentDetailPage() {
         </div>
       </Card>
 
-      {/* Barre de progression des matchs - Ligues seulement */}
-      {tournament.status === 'draft' && !isBracketFormat && (
-        <div className={`p-4 rounded-xl border backdrop-blur-sm ${matchesComplete ? 'bg-green-900/10 border-green-500/20' : 'bg-amber-900/10 border-amber-500/20'}`}>
-          <div className="flex items-center justify-between mb-2">
-            <span className={`font-medium ${matchesComplete ? 'text-green-400' : 'text-amber-400'}`}>
-              Configuration des matchs
-            </span>
-            <span className={`font-mono text-sm ${matchesComplete ? 'text-green-400' : 'text-amber-400'}`}>
-              {currentMatches} / {expectedMatches}
-            </span>
-          </div>
-          <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-            <div
-              className={`h-full transition-all duration-500 ${matchesComplete ? 'bg-green-500' : 'bg-amber-500'}`}
-              style={{ width: `${expectedMatches > 0 ? Math.min((currentMatches / expectedMatches) * 100, 100) : 0}%` }}
-            />
-          </div>
-          {!matchesComplete && (
-            <p className="mt-2 text-xs text-amber-500/80">
-              Configurez tous les matchs pour lancer le tournoi.
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Barre de progression - Bracket */}
-      {tournament.status === 'draft' && isBracketFormat && (
-        <div className={`p-4 rounded-xl border backdrop-blur-sm ${bracketReady ? 'bg-green-900/10 border-green-500/20' : 'bg-amber-900/10 border-amber-500/20'}`}>
-          <div className="flex items-center justify-between mb-2">
-            <span className={`font-medium ${bracketReady ? 'text-green-400' : 'text-amber-400'}`}>
-              Configuration du tableau
-            </span>
-            <span className={`font-mono text-sm ${bracketReady ? 'text-green-400' : 'text-amber-400'}`}>
-              {bracketProgress.current} / {bracketProgress.total} slots
-            </span>
-          </div>
-          <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-            <div
-              className={`h-full transition-all duration-500 ${bracketReady ? 'bg-green-500' : 'bg-amber-500'}`}
-              style={{ width: `${bracketProgress.total > 0 ? Math.min((bracketProgress.current / bracketProgress.total) * 100, 100) : 0}%` }}
-            />
-          </div>
-          {!bracketReady && (
-            <p className="mt-2 text-xs text-amber-500/80">
-              Assignez toutes les équipes du premier tour pour lancer le tournoi.
-            </p>
-          )}
-        </div>
-      )}
 
       {/* 
         =======================================================================
@@ -634,40 +527,25 @@ export function TournamentDetailPage() {
           </div>
         </Card>
 
-        {/* Card 3: Administration (Admin) OR Status (User) */}
         {isAdmin ? (
           <Card className="border-violet-500/20 flex-1">
             <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
               <Settings className="w-4 h-4 text-violet-400" /> Administration
             </h2>
             <div className="flex items-center gap-3">
-              {tournament.status === 'draft' ? (
-                <Button
-                  onClick={handleStartTournament}
-                  disabled={actionLoading || !canStartTournament}
-                  size="sm"
-                  variant={canStartTournament ? 'primary' : 'ghost'}
-                  className="flex-1"
-                  isLoading={actionLoading}
-                  icon={<Rocket className="w-4 h-4" />}
-                >
-                  {actionLoading ? 'Lancement...' : 'Démarrer'}
-                </Button>
-              ) : (
-                <div className="text-sm text-gray-400 flex-1 flex flex-col items-center justify-center">
-                  {tournament.status === 'active' && (
-                    <span className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                      En cours ({playedMatches}/{currentMatches})
-                    </span>
-                  )}
-                  {tournament.status === 'completed' && (
-                    <span className="flex items-center gap-2 text-blue-400">
-                      <Trophy className="w-3 h-3" /> Terminé
-                    </span>
-                  )}
-                </div>
-              )}
+              <div className="text-sm text-gray-400 flex-1 flex flex-col items-center justify-center">
+                {tournament.status === 'active' && (
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    En cours ({playedMatches}/{currentMatches})
+                  </span>
+                )}
+                {tournament.status === 'completed' && (
+                  <span className="flex items-center gap-2 text-blue-400">
+                    <Trophy className="w-3 h-3" /> Terminé
+                  </span>
+                )}
+              </div>
 
               <Button
                 onClick={handleDeleteTournament}
@@ -708,15 +586,9 @@ export function TournamentDetailPage() {
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <Trophy className="w-5 h-5 text-yellow-400" /> Classement
             </h2>
-            {tournament.status === 'draft' ? (
-              <div className="text-center py-4 text-gray-500 bg-white/5 rounded-lg border border-dashed border-gray-700 text-sm">
-                Le classement sera disponible une fois le tournoi démarré.
-              </div>
-            ) : (
-              <div className="overflow-hidden rounded-lg border border-white/5 bg-black/20">
-                <LeaderboardTable entries={leaderboard} loading={leaderboardLoading} />
-              </div>
-            )}
+            <div className="overflow-hidden rounded-lg border border-white/5 bg-black/20">
+              <LeaderboardTable entries={leaderboard} loading={leaderboardLoading} />
+            </div>
           </Card>
 
           <Card className="overflow-hidden">
@@ -744,15 +616,9 @@ export function TournamentDetailPage() {
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <Trophy className="w-5 h-5 text-yellow-400" /> Classement des joueurs
             </h2>
-            {tournament.status === 'draft' ? (
-              <div className="text-center py-8 text-gray-500 bg-white/5 rounded-lg border border-dashed border-gray-700">
-                Le classement sera disponible une fois le tournoi démarré.
-              </div>
-            ) : (
-              <div className="overflow-hidden rounded-lg border border-white/5 bg-black/20">
-                <LeaderboardTable entries={leaderboard} loading={leaderboardLoading} />
-              </div>
-            )}
+            <div className="overflow-hidden rounded-lg border border-white/5 bg-black/20">
+              <LeaderboardTable entries={leaderboard} loading={leaderboardLoading} />
+            </div>
           </Card>
 
           {/* Section 2: Classement Équipes (Full Width) */}
@@ -776,7 +642,7 @@ export function TournamentDetailPage() {
                   <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                     <Calendar className="w-5 h-5 text-gray-400" /> Matchs
                   </h2>
-                  {isAdmin && tournament.status === 'draft' && (
+                  {isAdmin && (
                     <button
                       onClick={() => openAddMatch(1)}
                       className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg bg-violet-500/10 text-violet-300 border border-violet-500/20 hover:bg-violet-500/20 hover:border-violet-500/30 hover:text-white transition-all shadow-sm shadow-violet-900/10"

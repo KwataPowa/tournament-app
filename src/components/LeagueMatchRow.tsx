@@ -36,8 +36,9 @@ export function LeagueMatchRow({
     const isClickable = (!isBye && !isTBD) || (tournamentStatus === 'draft' && isAdmin)
 
     // Actions available
-    const canPredict = tournamentStatus === 'active' && !isTBD && !isBye && !hasResult && onPredict
-    const canEnterResult = tournamentStatus === 'active' && !isTBD && !isBye && !hasResult && isAdmin && onEnterResult
+    // Pronostics disponibles dès qu'un match a ses équipes définies
+    const canPredict = !isTBD && !isBye && !hasResult && onPredict
+    const canEnterResult = !isTBD && !isBye && !hasResult && isAdmin && onEnterResult
 
     const handleRowClick = () => {
         if (isBye) return

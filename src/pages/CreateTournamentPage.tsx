@@ -166,6 +166,7 @@ export function CreateTournamentPage() {
         name: name.trim(),
         admin_id: user.id,
         format,
+        status: 'active', // Active immédiatement dès la création
         scoring_rules: scoringRules,
         teams: teams,
         home_and_away: !isElimination && homeAndAway,
