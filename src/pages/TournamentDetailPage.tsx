@@ -3,14 +3,12 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuthContext } from '../lib/AuthContext'
 import { getTournamentWithMatches, updateTournament, deleteTournament, removeParticipant } from '../services/tournaments'
 import { createMatch, updateMatch, deleteMatch, enterMatchResult, updateMatchResultRecursive } from '../services/matches'
-import { assignTeamToMatch, removeTeamFromMatch } from '../services/brackets'
 import { getUserPredictionsForTournament, createOrUpdatePrediction } from '../services/predictions'
 import { getLeaderboard, type LeaderboardEntry } from '../services/leaderboard'
 import { useTournamentRealtime } from '../hooks/useTournamentRealtime'
 import { MatchEditModal } from '../components/MatchEditModal'
 import { MatchResultModal } from '../components/MatchResultModal'
 import { PredictionModal } from '../components/PredictionModal'
-import { TeamAssignModal } from '../components/TeamAssignModal'
 import { LeaderboardTable } from '../components/LeaderboardTable'
 import { LeagueStandingsTable } from '../components/LeagueStandingsTable'
 import { LeagueMatchRow } from '../components/LeagueMatchRow'
@@ -52,9 +50,7 @@ export function TournamentDetailPage() {
   const [resultMatch, setResultMatch] = useState<Match | null>(null)
   const [predictionMatch, setPredictionMatch] = useState<Match | null>(null)
 
-  // Bracket team assignment modal state
-  const [assignMatch, setAssignMatch] = useState<Match | null>(null)
-  const [assignSlot, setAssignSlot] = useState<'team_a' | 'team_b'>('team_a')
+
 
   // Round date editing state
   const [editingRoundDate, setEditingRoundDate] = useState<number | null>(null)
@@ -102,6 +98,45 @@ export function TournamentDetailPage() {
   const teams = normalizeTeams(tournament?.teams as (string | { name: string; logo?: string })[])
 
   const currentMatches = matches.length
+
+  // Bracket: Vérifie si on peut éditer les équipes pour un match donné (logique phase-par-phase)
+  const canEditTeamsForMatch = useCallback((match: Match | null): boolean => {
+    if (!match || !isAdmin || !isBracketFormat) return false
+    if (match.result !== null) return false // Match déjà joué
+
+    // Winners Round 1: toujours éditable si pas de résultat
+    if (match.round === 1 && match.bracket_side === 'winners') {
+      return tournament?.status === 'draft' || tournament?.status === 'active'
+    }
+
+    // Losers Round 1: éditable si Winners Round 1 terminé
+    if (match.round === 1 && match.bracket_side === 'losers') {
+      const winnersR1 = matches.filter(m => m.round === 1 && m.bracket_side === 'winners')
+      const allComplete = winnersR1.every(m => m.result !== null || m.is_bye)
+      return allComplete && tournament?.status === 'active'
+    }
+
+    // Grand Final: éditable si Winners Final et Losers Final terminés
+    if (match.bracket_side === 'grand_final') {
+      const winnersMatches = matches.filter(m => m.bracket_side === 'winners')
+      const losersMatches = matches.filter(m => m.bracket_side === 'losers')
+      const maxWR = Math.max(...winnersMatches.map(m => m.round), 0)
+      const maxLR = Math.max(...losersMatches.map(m => m.round), 0)
+      const winnersFinal = winnersMatches.filter(m => m.round === maxWR)
+      const losersFinal = losersMatches.filter(m => m.round === maxLR)
+      const allComplete = winnersFinal.every(m => m.result !== null) && losersFinal.every(m => m.result !== null)
+      return allComplete && tournament?.status === 'active'
+    }
+
+    // Autres rounds: round précédent doit être terminé
+    const bracketMatches = matches.filter(m => m.bracket_side === match.bracket_side)
+    const prevRoundMatches = bracketMatches.filter(m => m.round === match.round - 1)
+    if (prevRoundMatches.length === 0) return false
+
+    const allComplete = prevRoundMatches.every(m => m.result !== null || m.is_bye)
+    return allComplete && tournament?.status === 'active'
+  }, [matches, isAdmin, isBracketFormat, tournament?.status])
+
 
 
   // Pour les brackets: calculer les équipes déjà assignées dans un round donné
@@ -163,6 +198,27 @@ export function TournamentDetailPage() {
     return Array.from(candidates).map(name => {
       const existingTeam = teams.find(t => t.name === name)
       return existingTeam || { name }
+    })
+  }
+
+  // Bracket: Calcule les équipes disponibles pour un slot, excluant celles déjà dans le même round
+  const getAvailableTeamsForSlot = (match: Match | null, slot: 'team_a' | 'team_b'): typeof teams => {
+    if (!match) return []
+
+    const baseTeams = getAvailableTeamsForRound(match)
+    const assignedInRound = getAssignedTeamsInRound(match.round, match.bracket_side)
+
+    // Exclure les équipes déjà assignées dans ce round (sauf celle actuellement dans CE match pour CE slot)
+    const currentTeam = slot === 'team_a' ? match.team_a : match.team_b
+    const otherSlotTeam = slot === 'team_a' ? match.team_b : match.team_a
+
+    return baseTeams.filter(t => {
+      // Toujours garder l'équipe actuellement assignée à ce slot
+      if (t.name === currentTeam && currentTeam !== 'TBD') return true
+      // Exclure l'équipe de l'autre slot de ce match
+      if (t.name === otherSlotTeam && otherSlotTeam !== 'TBD') return false
+      // Exclure les équipes déjà assignées ailleurs dans ce round
+      return !assignedInRound.includes(t.name)
     })
   }
 
@@ -327,9 +383,9 @@ export function TournamentDetailPage() {
     const targetMatch = matchOverride || resultMatch || editingMatch
     if (!targetMatch) return
 
-    // Pour les brackets avec correction: utiliser la RPC avec effet domino
-    const isCorrection = targetMatch.result !== null
-    if (isBracketFormat && isCorrection) {
+    // Pour les brackets: utiliser la RPC avec effet domino (pour première entrée ET corrections)
+    // Le trigger auto-advance est désactivé (003_disable_auto_advance.sql), donc on utilise la RPC
+    if (isBracketFormat) {
       await updateMatchResultRecursive(targetMatch.id, result.winner, result.score)
       // Recharger tous les matchs car plusieurs peuvent avoir changé
       const data = await getTournamentWithMatches(tournament!.id)
@@ -345,6 +401,7 @@ export function TournamentDetailPage() {
         prev.map((m) => (m.id === updated.id ? updated : m))
       )
     }
+
     // Recharger le leaderboard après saisie du résultat (les points sont mis à jour)
     loadLeaderboard()
   }
@@ -377,28 +434,7 @@ export function TournamentDetailPage() {
     })
   }
 
-  // Bracket: ouvrir le modal d'assignation d'équipe
-  const handleOpenAssignTeam = (match: Match, slot: 'team_a' | 'team_b') => {
-    setAssignMatch(match)
-    setAssignSlot(slot)
-  }
 
-  // Bracket: assigner une équipe
-  const handleAssignTeam = async (teamName: string, startTime?: string | null) => {
-    if (!assignMatch) return
-
-    // 1. Assign team
-    let updated = await assignTeamToMatch(assignMatch.id, assignSlot, teamName)
-
-    // 2. Update start_time if provided/changed
-    if (startTime !== undefined && startTime !== assignMatch.start_time) {
-      updated = await updateMatch(assignMatch.id, { start_time: startTime })
-    }
-
-    setMatches((prev) =>
-      prev.map((m) => (m.id === updated.id ? updated : m))
-    )
-  }
 
   const handleSaveRoundDate = async (round: number, dateStr: string) => {
     if (!tournament) return
@@ -424,14 +460,7 @@ export function TournamentDetailPage() {
     }
   }
 
-  // Bracket: retirer une équipe
-  const handleRemoveTeam = async () => {
-    if (!assignMatch) return
-    const updated = await removeTeamFromMatch(assignMatch.id, assignSlot)
-    setMatches((prev) =>
-      prev.map((m) => (m.id === updated.id ? updated : m))
-    )
-  }
+
 
   // Bracket: changer le format de match (BO)
   const handleChangeFormat = async (match: Match, format: MatchFormat) => {
@@ -669,10 +698,10 @@ export function TournamentDetailPage() {
               predictions={predictions}
               tournament={tournament}
               isAdmin={isAdmin}
-              onAssignTeam={handleOpenAssignTeam}
               onEnterResult={(match) => setResultMatch(match)}
               onPredict={(match) => setPredictionMatch(match)}
               onChangeFormat={handleChangeFormat}
+              onEdit={openEditMatch}
               teams={teams}
             />
           </Card>
@@ -813,9 +842,13 @@ export function TournamentDetailPage() {
           existingMatches={matches}
           homeAndAway={tournament.home_and_away}
           tournamentStatus={tournament.status}
+          isBracket={isBracketFormat}
+          canEditTeams={canEditTeamsForMatch(editingMatch)}
+          availableTeamsForSlotA={getAvailableTeamsForSlot(editingMatch, 'team_a')}
+          availableTeamsForSlotB={getAvailableTeamsForSlot(editingMatch, 'team_b')}
           onSave={handleSaveMatch}
           onSaveResult={handleSaveResult}
-          onDelete={editingMatch ? handleDeleteMatch : undefined}
+          onDelete={editingMatch && !isBracketFormat ? handleDeleteMatch : undefined}
           onClose={closeModal}
         />
       )}
@@ -835,18 +868,6 @@ export function TournamentDetailPage() {
           existingPrediction={predictionsByMatch[predictionMatch.id] || null}
           onSave={handleSavePrediction}
           onClose={() => setPredictionMatch(null)}
-        />
-      )}
-
-      {assignMatch && (
-        <TeamAssignModal
-          match={assignMatch}
-          slot={assignSlot}
-          availableTeams={getAvailableTeamsForRound(assignMatch)}
-          assignedTeams={getAssignedTeamsInRound(assignMatch.round, assignMatch.bracket_side)}
-          onAssign={handleAssignTeam}
-          onRemove={handleRemoveTeam}
-          onClose={() => setAssignMatch(null)}
         />
       )}
     </div>

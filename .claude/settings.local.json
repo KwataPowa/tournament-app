@@ -10,7 +10,8 @@
       "mcp__ide__getDiagnostics",
       "Skill(frontend-design)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push)"
     ]
   }
 }

@@ -9,11 +9,11 @@ type BracketRoundProps = {
   isAdmin: boolean
   tournamentStatus: 'draft' | 'active' | 'completed'
   totalRounds: number
-  canAssignTeams?: boolean
-  onAssignTeam?: (match: Match, slot: 'team_a' | 'team_b') => void
+
   onEnterResult?: (match: Match) => void
   onPredict?: (match: Match) => void
   onChangeFormat?: (match: Match, format: MatchFormat) => void
+  onEdit?: (match: Match) => void
   teams?: { name: string; logo?: string }[]
   spacingFactor?: number
   customPaddingY?: number
@@ -27,11 +27,11 @@ export function BracketRound({
   tournamentStatus,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   totalRounds: _totalRounds,
-  canAssignTeams,
-  onAssignTeam,
+
   onEnterResult,
   onPredict,
   onChangeFormat,
+  onEdit,
   teams,
   spacingFactor = 1,
   customPaddingY,
@@ -70,11 +70,11 @@ export function BracketRound({
             prediction={predictions[match.id]}
             isAdmin={isAdmin}
             tournamentStatus={tournamentStatus}
-            canAssignTeams={canAssignTeams}
-            onAssignTeam={onAssignTeam}
+
             onEnterResult={onEnterResult}
             onPredict={onPredict}
             onChangeFormat={onChangeFormat}
+            onEdit={onEdit}
             teams={teams}
           />
         ))}

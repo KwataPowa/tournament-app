@@ -8,10 +8,10 @@ type BracketViewProps = {
   predictions: Prediction[]
   tournament: Tournament
   isAdmin: boolean
-  onAssignTeam?: (match: Match, slot: 'team_a' | 'team_b') => void
   onEnterResult?: (match: Match) => void
   onPredict?: (match: Match) => void
   onChangeFormat?: (match: Match, format: MatchFormat) => void
+  onEdit?: (match: Match) => void
   teams?: { name: string; logo?: string }[]
 }
 
@@ -20,10 +20,10 @@ export function BracketView({
   predictions,
   tournament,
   isAdmin,
-  onAssignTeam,
   onEnterResult,
   onPredict,
   onChangeFormat,
+  onEdit,
   teams,
 }: BracketViewProps) {
   // Create prediction lookup map
@@ -151,37 +151,7 @@ export function BracketView({
   }, [bracketData])
 
   // Check if rounds can be assigned
-  const canAssignRound = (roundNum: number, side: 'winners' | 'losers'): boolean => {
-    const roundsMap = side === 'winners' ? bracketData.winnersRounds : bracketData.losersRounds
 
-    if (side === 'winners' && roundNum === 1) {
-      return tournament.status === 'draft'
-    }
-
-    if (side === 'losers' && roundNum === 1) {
-      const winnersRound1 = bracketData.winnersRounds.get(1)
-      const complete = winnersRound1?.every((m) => m.result !== null || m.is_bye) ?? false
-      return tournament.status === 'active' && complete
-    }
-
-    const prevRoundMatches = roundsMap.get(roundNum - 1)
-    if (!prevRoundMatches) return false
-
-    const allComplete = prevRoundMatches.every((m) => m.result !== null || m.is_bye)
-    return allComplete && tournament.status === 'active'
-  }
-
-  const canAssignGrandFinal = (): boolean => {
-    if (!bracketData.hasLosers) return false
-
-    const winnersLast = bracketData.winnersRounds.get(bracketData.totalWinnersRounds)
-    const winnersComplete = winnersLast?.every((m) => m.result !== null) ?? false
-
-    const losersLast = bracketData.losersRounds.get(bracketData.totalLosersRounds)
-    const losersComplete = losersLast?.every((m) => m.result !== null) ?? false
-
-    return winnersComplete && losersComplete && tournament.status === 'active'
-  }
 
   return (
     <div className="bracket-container">
@@ -216,11 +186,10 @@ export function BracketView({
                   isAdmin={isAdmin}
                   tournamentStatus={tournament.status}
                   totalRounds={bracketData.totalWinnersRounds}
-                  canAssignTeams={canAssignRound(roundNum, 'winners')}
-                  onAssignTeam={onAssignTeam}
                   onEnterResult={onEnterResult}
                   onPredict={onPredict}
                   onChangeFormat={onChangeFormat}
+                  onEdit={onEdit}
                   teams={teams}
                   spacingFactor={factors.get(`winners-${roundNum}`)}
                 />
@@ -237,11 +206,10 @@ export function BracketView({
                 isAdmin={isAdmin}
                 tournamentStatus={tournament.status}
                 totalRounds={1}
-                canAssignTeams={canAssignGrandFinal()}
-                onAssignTeam={onAssignTeam}
                 onEnterResult={onEnterResult}
                 onPredict={onPredict}
                 onChangeFormat={onChangeFormat}
+                onEdit={onEdit}
                 teams={teams}
                 spacingFactor={factors.get(`winners-${bracketData.totalWinnersRounds}`)}
               />
@@ -272,11 +240,10 @@ export function BracketView({
                     isAdmin={isAdmin}
                     tournamentStatus={tournament.status}
                     totalRounds={bracketData.totalLosersRounds}
-                    canAssignTeams={canAssignRound(roundNum, 'losers')}
-                    onAssignTeam={onAssignTeam}
                     onEnterResult={onEnterResult}
                     onPredict={onPredict}
                     onChangeFormat={onChangeFormat}
+                    onEdit={onEdit}
                     teams={teams}
                     spacingFactor={factors.get(`losers-${roundNum}`)}
                     customPaddingY={paddingOverrides.get(`losers-${roundNum}`)}

@@ -8,11 +8,10 @@ type BracketMatchCardProps = {
   prediction?: Prediction
   isAdmin: boolean
   tournamentStatus: 'draft' | 'active' | 'completed'
-  canAssignTeams?: boolean // Contrôlé par le parent (round précédent terminé)
-  onAssignTeam?: (match: Match, slot: 'team_a' | 'team_b') => void
   onEnterResult?: (match: Match) => void
   onPredict?: (match: Match) => void
   onChangeFormat?: (match: Match, format: MatchFormat) => void
+  /** Ouvre le modal d'édition unifié (format, date, résultat, équipes) */
   onEdit?: (match: Match) => void
   teams?: { name: string; logo?: string }[]
 }
@@ -23,11 +22,11 @@ export function BracketMatchCard({
   match,
   prediction,
   isAdmin,
-  canAssignTeams: canAssignFromParent,
-  onAssignTeam,
+  tournamentStatus,
   onEnterResult,
   onPredict,
   onChangeFormat,
+  onEdit,
   teams,
 }: BracketMatchCardProps) {
   const [showFormatMenu, setShowFormatMenu] = useState(false)
@@ -52,30 +51,18 @@ export function BracketMatchCard({
   const isBye = match.is_bye
   const isClickable = (!isBye && !isTBD) || isAdmin
 
-  // L'assignation est contrôlée par le parent (vérifie si le round précédent est terminé)
-  const canAssignTeams = canAssignFromParent && isAdmin && !hasResult
 
-  // Determine what action is available
-  const handleTeamClick = (slot: 'team_a' | 'team_b') => {
-    if (canAssignTeams && onAssignTeam) {
-      onAssignTeam(match, slot)
-    }
-  }
-
-  // Pronostics disponibles dès qu'un match a ses équipes définies (avant résultat)
-  const canPredict = !isTBD && !isBye && !hasResult && onPredict
-  // Admin peut entrer/modifier le résultat à tout moment
-  const canEnterResult = !isTBD && !isBye && isAdmin && onEnterResult
 
   const handleCardClick = () => {
     if (isBye) return
-    if (isTBD) return
 
-    // L'admin peut entrer/modifier le résultat en cliquant
-    if (isAdmin && onEnterResult) {
-      onEnterResult(match)
+    // L'admin peut éditer le match (format, date, résultat) en cliquant
+    if (isAdmin && onEdit) {
+      onEdit(match)
       return
     }
+
+    if (isTBD) return
 
     // Les utilisateurs non-admin peuvent pronostiquer avant le résultat
     if (!isAdmin && !hasResult && onPredict) {
@@ -177,35 +164,29 @@ export function BracketMatchCard({
       {/* RIGHT CONTENT: Date & Teams */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Date Header */}
-        {(match.start_time || isBye) && (
-          <div className="px-3 py-1 border-b border-white/5 flex items-center justify-center bg-white/[0.02] h-6">
-            {match.start_time ? (
-              <div className="flex items-center gap-1.5">
-                <span className="text-[9px] text-cyan-400 font-medium whitespace-nowrap">
-                  {new Date(match.start_time).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' })}
-                </span>
-                <span className="text-[8px] text-cyan-600/50">•</span>
-                <span className="text-[9px] text-cyan-300/90 font-mono">
-                  {new Date(match.start_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-            ) : (
-              isBye && <span className="text-[9px] text-amber-500/50 font-bold tracking-wider">BYE</span>
-            )}
-          </div>
-        )}
+        {/* Date Header: Always visible for consistent height */}
+        <div className="px-3 py-1 border-b border-white/5 flex items-center justify-center bg-white/[0.02] h-6">
+          {match.start_time ? (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] text-cyan-400 font-medium whitespace-nowrap">
+                {new Date(match.start_time).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' })}
+              </span>
+              <span className="text-[8px] text-cyan-600/50">•</span>
+              <span className="text-[9px] text-cyan-300/90 font-mono">
+                {new Date(match.start_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+          ) : (
+            isBye ? <span className="text-[9px] text-amber-500/50 font-bold tracking-wider">BYE</span> : <span className="text-[9px] text-white/10 font-mono">--/--</span>
+          )}
+        </div>
 
 
         {/* Team A */}
         <div
-          onClick={(e) => {
-            e.stopPropagation()
-            handleTeamClick('team_a')
-          }}
           className={`
           px-3 py-2.5 flex items-center justify-between gap-2 border-b border-white/5
           ${teamAWon ? 'bg-green-500/10' : ''}
-          ${canAssignTeams ? 'cursor-pointer hover:bg-white/5' : ''}
         `}
         >
           <div className="flex items-center gap-2 overflow-hidden">
@@ -243,14 +224,9 @@ export function BracketMatchCard({
 
         {/* Team B */}
         <div
-          onClick={(e) => {
-            e.stopPropagation()
-            handleTeamClick('team_b')
-          }}
           className={`
           px-3 py-2.5 flex items-center justify-between gap-2 border-t border-transparent
           ${teamBWon ? 'bg-green-500/10' : ''}
-          ${canAssignTeams ? 'cursor-pointer hover:bg-white/5' : ''}
         `}
         >
           <div className="flex items-center gap-2 overflow-hidden">
@@ -285,23 +261,30 @@ export function BracketMatchCard({
           </div>
         </div>
 
-        {/* Action buttons (avant résultat seulement) */}
-        {!hasResult && !isTBD && !isBye && (
+        {/* Action buttons (pronostic seulement, avant résultat) */}
+        {/* Action buttons (pronostic seulement, avant résultat) */}
+        {onPredict && !isBye && !hasResult && (
           <div className="px-2 py-1.5 border-t border-white/5 flex gap-1">
             {/* Bouton pronostiquer */}
-            {canPredict && !prediction && (
+            {!prediction && (
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  onPredict!(match)
+                  if (!isTBD) onPredict(match)
                 }}
-                className="flex-1 px-2 py-1 text-[10px] font-medium rounded bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 transition-colors cursor-pointer"
+                disabled={isTBD}
+                className={`
+                  flex-1 px-2 py-1 text-[10px] font-medium rounded transition-colors
+                  ${isTBD
+                    ? 'bg-white/5 text-gray-500 cursor-not-allowed'
+                    : 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 cursor-pointer'}
+                `}
               >
                 Pronostiquer
               </button>
             )}
             {/* Bouton modifier pronostic */}
-            {canPredict && prediction && (
+            {prediction && (
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -312,18 +295,6 @@ export function BracketMatchCard({
               >
                 <span className="block">{prediction.predicted_winner}</span>
                 <span className="text-cyan-300 font-mono">({prediction.predicted_score})</span>
-              </button>
-            )}
-            {/* Bouton résultat (admin) */}
-            {canEnterResult && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onEnterResult!(match)
-                }}
-                className="flex-1 px-2 py-1 text-[10px] font-medium rounded bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors cursor-pointer"
-              >
-                Résultat
               </button>
             )}
           </div>
