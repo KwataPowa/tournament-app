@@ -7,38 +7,8 @@ import { createProfile, updateProfile } from '../services/profiles'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
-import {
-  AlertTriangle,
-  CheckCircle2,
-  User,
-  Ghost,
-  Gamepad2,
-  Swords,
-  Trophy,
-  Target,
-  Zap,
-  Crown,
-  Skull,
-  Rocket,
-  Flame,
-  Cat
-} from 'lucide-react'
-
-// Options d'avatars (IDs correspondant aux icônes)
-const AVATAR_OPTIONS = [
-  { id: 'user', icon: User },
-  { id: 'ghost', icon: Ghost },
-  { id: 'gamepad', icon: Gamepad2 },
-  { id: 'cat', icon: Cat },
-  { id: 'swords', icon: Swords },
-  { id: 'trophy', icon: Trophy },
-  { id: 'target', icon: Target },
-  { id: 'zap', icon: Zap },
-  { id: 'crown', icon: Crown },
-  { id: 'skull', icon: Skull },
-  { id: 'rocket', icon: Rocket },
-  { id: 'flame', icon: Flame },
-]
+import { AvatarPicker, ALL_AVATARS, AVATAR_MAP } from '../components/AvatarPicker'
+import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 
 export function ProfilePage() {
   const { user } = useAuthContext()
@@ -47,7 +17,7 @@ export function ProfilePage() {
 
   // Default to first option
   const [username, setUsername] = useState('')
-  const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_OPTIONS[0].id)
+  const [selectedAvatar, setSelectedAvatar] = useState(ALL_AVATARS[0].id)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -58,7 +28,7 @@ export function ProfilePage() {
       setUsername(profile.username)
       // Si l'avatar du profil est valide, on l'utilise. 
       // Si c'est un ancien emoji, on le garde aussi (il sera affiché en texte si pas dans la liste)
-      setSelectedAvatar(profile.avatar_url || AVATAR_OPTIONS[0].id)
+      setSelectedAvatar(profile.avatar_url || ALL_AVATARS[0].id)
     }
   }, [profile])
 
@@ -121,14 +91,11 @@ export function ProfilePage() {
 
   // Helper to render the avatar (icon or emoji fallback)
   const renderAvatar = (avatarId: string, className: string = "w-full h-full") => {
-    const option = AVATAR_OPTIONS.find(opt => opt.id === avatarId)
-    if (option) {
-      const Icon = option.icon
+    const Icon = AVATAR_MAP[avatarId]
+    if (Icon) {
       return <Icon className={className} />
     }
     // Fallback for legacy emojis or direct URLs
-    // For now assuming it's a string (emoji)
-    // If it's a URL we might need an img tag, but currently we only supported emojis
     return <span className={className.includes('w-12') ? 'text-2xl' : 'text-4xl'}>{avatarId}</span>
   }
 
@@ -183,32 +150,12 @@ export function ProfilePage() {
             <label className="block text-sm font-medium text-gray-300 mb-3">
               Avatar
             </label>
-            <div className="grid grid-cols-6 gap-2">
-              {AVATAR_OPTIONS.map((option, index) => {
-                const Icon = option.icon
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => setSelectedAvatar(option.id)}
-                    className={`
-                      aspect-square rounded-xl flex items-center justify-center
-                      transition-all duration-300 border-2
-                      ${selectedAvatar === option.id
-                        ? 'bg-violet-500/20 border-violet-500 ring-2 ring-violet-400/50 shadow-lg shadow-violet-500/20 scale-110'
-                        : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
-                      }
-                    `}
-                    style={{ animationDelay: `${index * 0.03}s` }}
-                    title={option.id}
-                  >
-                    <Icon className={`w-6 h-6 ${selectedAvatar === option.id ? 'text-violet-300' : 'text-gray-400'}`} />
-                  </button>
-                )
-              })}
-            </div>
+            <AvatarPicker
+              selected={selectedAvatar}
+              onSelect={setSelectedAvatar}
+            />
             {/* If current avatar is not in options (legacy emoji), show it as selected */}
-            {!AVATAR_OPTIONS.some(opt => opt.id === selectedAvatar) && (
+            {!ALL_AVATARS.some(opt => opt.id === selectedAvatar) && (
               <div className="mt-4 p-3 bg-white/5 rounded-lg border border-white/10 flex items-center gap-3">
                 <span className="text-sm text-gray-400">Avatar actuel (hérité) :</span>
                 <span className="text-2xl">{selectedAvatar}</span>

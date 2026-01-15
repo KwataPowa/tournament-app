@@ -229,7 +229,7 @@ export function CreateTournamentPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             error={errors.name}
-            placeholder="Ex: LEC Winter 2024"
+            placeholder="Ex : LEC Winter 2026"
           />
         </Card>
 

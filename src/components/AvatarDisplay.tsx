@@ -1,34 +1,5 @@
-import type { LucideIcon } from 'lucide-react'
-import {
-    User,
-    Ghost,
-    Gamepad2,
-    Swords,
-    Trophy,
-    Target,
-    Zap,
-    Crown,
-    Skull,
-    Rocket,
-    Flame,
-    Cat
-} from 'lucide-react'
-
-// Map of ID -> Icon
-const AVATAR_MAP: Record<string, LucideIcon> = {
-    user: User,
-    ghost: Ghost,
-    gamepad: Gamepad2,
-    cat: Cat,
-    swords: Swords,
-    trophy: Trophy,
-    target: Target,
-    zap: Zap,
-    crown: Crown,
-    skull: Skull,
-    rocket: Rocket,
-    flame: Flame,
-}
+import { User } from 'lucide-react'
+import { AVATAR_MAP } from './AvatarPicker'
 
 type AvatarDisplayProps = {
     avatar: string | null | undefined

@@ -5,47 +5,24 @@ import { useAuthContext } from '../lib/AuthContext'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Card } from '../components/ui/Card'
+import { AvatarPicker, ALL_AVATARS } from '../components/AvatarPicker'
 import {
   Trophy,
   Gamepad2,
   Hand,
   AlertTriangle,
-  CheckCircle2,
-  User,
-  Ghost,
-  Swords,
-  Target,
-  Zap,
-  Crown,
-  Skull,
-  Rocket,
-  Flame,
-  Cat
+  CheckCircle2
 } from 'lucide-react'
 
 type Mode = 'login' | 'signup'
-
-const AVATAR_OPTIONS = [
-  { id: 'user', icon: User },
-  { id: 'ghost', icon: Ghost },
-  { id: 'gamepad', icon: Gamepad2 },
-  { id: 'cat', icon: Cat },
-  { id: 'swords', icon: Swords },
-  { id: 'trophy', icon: Trophy },
-  { id: 'target', icon: Target },
-  { id: 'zap', icon: Zap },
-  { id: 'crown', icon: Crown },
-  { id: 'skull', icon: Skull },
-  { id: 'rocket', icon: Rocket },
-  { id: 'flame', icon: Flame },
-]
 
 export function LoginPage() {
   const [mode, setMode] = useState<Mode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [username, setUsername] = useState('')
-  const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_OPTIONS[0].id)
+  const [selectedAvatar, setSelectedAvatar] = useState(ALL_AVATARS[0].id)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -68,6 +45,11 @@ export function LoginPage() {
           navigate('/')
         }
       } else {
+        if (password !== confirmPassword) {
+          setError('Les mots de passe ne correspondent pas')
+          setLoading(false)
+          return
+        }
         if (username.length < 3) {
           setError('Le pseudo doit contenir au moins 3 caractères')
           setLoading(false)
@@ -222,30 +204,11 @@ export function LoginPage() {
                   <label className="block text-sm font-medium text-gray-300 mb-3 ml-1">
                     Choisis ton avatar
                   </label>
-                  <div className="grid grid-cols-6 gap-2">
-                    {AVATAR_OPTIONS.map((option, index) => {
-                      const Icon = option.icon
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setSelectedAvatar(option.id)}
-                          className={`
-                            aspect-square rounded-xl flex items-center justify-center
-                            transition-all duration-300 border-2
-                            ${selectedAvatar === option.id
-                              ? 'bg-violet-500/20 border-violet-500 ring-2 ring-violet-400/50 shadow-lg shadow-violet-500/20 scale-110'
-                              : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
-                            }
-                          `}
-                          style={{ animationDelay: `${index * 0.03}s` }}
-                          title={option.id}
-                        >
-                          <Icon className={`w-6 h-6 ${selectedAvatar === option.id ? 'text-violet-300' : 'text-gray-400'}`} />
-                        </button>
-                      )
-                    })}
-                  </div>
+                  <AvatarPicker
+                    selected={selectedAvatar}
+                    onSelect={setSelectedAvatar}
+                    compact
+                  />
                 </div>
               </div>
             )}
@@ -259,7 +222,6 @@ export function LoginPage() {
               required
               placeholder="gamer@example.com"
             />
-
             <Input
               id="password"
               label="Mot de passe"
@@ -270,6 +232,19 @@ export function LoginPage() {
               minLength={6}
               placeholder="••••••••"
             />
+
+            {mode === 'signup' && (
+              <Input
+                id="confirmPassword"
+                label="Confirmer le mot de passe"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={6}
+                placeholder="••••••••"
+              />
+            )}
 
             {/* Error Message */}
             {error && (
