@@ -21,6 +21,7 @@ type MatchEditModalProps = {
   availableTeamsForSlotA?: { name: string; logo?: string }[]
   /** Bracket: available teams for slot B (excluding already assigned in this round) */
   availableTeamsForSlotB?: { name: string; logo?: string }[]
+  roundDates?: Record<string, string>
   onSave: (data: {
     team_a: string
     team_b: string
@@ -75,6 +76,7 @@ export function MatchEditModal({
   canEditTeams = false,
   availableTeamsForSlotA = [],
   availableTeamsForSlotB = [],
+  roundDates = {},
   onSave,
   onSaveResult,
   onDelete,
@@ -85,16 +87,14 @@ export function MatchEditModal({
   const [round, setRound] = useState(match?.round || defaultRound)
   const [matchFormat, setMatchFormat] = useState<MatchFormat>(match?.match_format || 'BO3')
 
-  // Helper to format date for input (YYYY-MM-DDTHH:mm)
-  const formatForInput = (isoString?: string | null) => {
+  // Helper: Extract HH:mm from ISO
+  const formatTime = (isoString?: string | null) => {
     if (!isoString) return ''
     const date = new Date(isoString)
-    const offset = date.getTimezoneOffset()
-    const localDate = new Date(date.getTime() - (offset * 60 * 1000))
-    return localDate.toISOString().slice(0, 16)
+    return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
   }
 
-  const [startTime, setStartTime] = useState(formatForInput(match?.start_time))
+  const [timeValue, setTimeValue] = useState(formatTime(match?.start_time))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -117,7 +117,7 @@ export function MatchEditModal({
       setTeamB(match.team_b)
       setRound(match.round)
       setMatchFormat(match.match_format)
-      setStartTime(formatForInput(match.start_time))
+      setTimeValue(formatTime(match.start_time))
       // Résultat
       setResultWinner(
         match.result?.winner === match.team_a ? 'team_a' :
@@ -170,6 +170,31 @@ export function MatchEditModal({
     e.preventDefault()
     setError(null)
 
+    // Calculate Final Start Time
+    let finalStartTime: string | null = null
+    if (timeValue) {
+      const [hours, minutes] = timeValue.split(':').map(Number)
+
+      // Determine Base Date
+      // 1. Round Date (Global)
+      const roundDateStr = roundDates[round.toString()]
+      let baseDate: Date
+
+      if (roundDateStr) {
+        baseDate = new Date(roundDateStr)
+      } else if (match?.start_time) {
+        // 2. Existing Match Date (fallback)
+        baseDate = new Date(match.start_time)
+      } else {
+        // 3. Today (fallback)
+        baseDate = new Date()
+      }
+
+      // Apply time
+      baseDate.setHours(hours, minutes, 0, 0)
+      finalStartTime = baseDate.toISOString()
+    }
+
     // Pour les brackets: validation différente
     if (isBracket) {
       setLoading(true)
@@ -181,7 +206,7 @@ export function MatchEditModal({
           team_b: teamB, // Inchangé car readonly
           round,
           match_format: matchFormat,
-          start_time: startTime ? new Date(startTime).toISOString() : null,
+          start_time: finalStartTime,
         })
 
         // Sauvegarder le résultat si rempli
@@ -227,7 +252,7 @@ export function MatchEditModal({
         team_b: teamB,
         round,
         match_format: matchFormat,
-        start_time: startTime ? new Date(startTime).toISOString() : null,
+        start_time: finalStartTime,
       })
 
       // Sauvegarder le résultat si rempli
@@ -294,166 +319,176 @@ export function MatchEditModal({
 
         {/* Content */}
         <form onSubmit={handleSubmit} className="relative p-6 space-y-6">
-          {/* Teams display (bracket: editable when canEditTeams, league: always editable) */}
-          {isBracket ? (
-            /* Mode Bracket: équipes éditables si canEditTeams=true, sinon lecture seule */
-            <div className="grid grid-cols-2 gap-4">
-              {/* Équipe A */}
-              <div>
-                <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
-                  Équipe A
-                </label>
-                {canEditTeams && (teamA === 'TBD' || teamA === '') ? (
-                  <div className="relative">
-                    <select
-                      value={teamA === 'TBD' ? '' : teamA}
-                      onChange={(e) => setTeamA(e.target.value || 'TBD')}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 hover:bg-white/10"
-                    >
-                      <option value="" className="bg-[#1a1625] text-gray-400">Sélectionner...</option>
-                      {availableTeamsForSlotA
-                        .filter(t => t.name !== teamB) // Exclude team already selected for slot B
-                        .map((team) => (
-                          <option key={team.name} value={team.name} className="bg-[#1a1625] text-white">
-                            {team.name}
-                          </option>
-                        ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
-                ) : (
-                  <div className={`px-4 py-3 rounded-xl border ${teamA === 'TBD' || teamA === ''
-                      ? 'bg-white/5 border-white/10 text-gray-500 italic'
-                      : 'bg-white/10 border-white/20 text-white font-semibold'
-                    }`}>
-                    {teamA === 'TBD' || teamA === '' ? 'À définir' : teamA}
-                  </div>
-                )}
-              </div>
-
-              {/* VS */}
-              <div className="col-span-2 flex justify-center -my-2">
-                <span className="text-violet-400 font-bold text-lg">VS</span>
-              </div>
-
-              {/* Équipe B */}
-              <div className="col-start-2 -mt-4">
-                <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
-                  Équipe B
-                </label>
-                {canEditTeams && (teamB === 'TBD' || teamB === '') ? (
-                  <div className="relative">
-                    <select
-                      value={teamB === 'TBD' ? '' : teamB}
-                      onChange={(e) => setTeamB(e.target.value || 'TBD')}
-                      className="w-full px-4 py-3 bg-white/5 border-white/10 rounded-xl text-white appearance-none cursor-pointer transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 hover:bg-white/10"
-                    >
-                      <option value="" className="bg-[#1a1625] text-gray-400">Sélectionner...</option>
-                      {availableTeamsForSlotB
-                        .filter(t => t.name !== teamA) // Exclude team already selected for slot A
-                        .map((team) => (
-                          <option key={team.name} value={team.name} className="bg-[#1a1625] text-white">
-                            {team.name}
-                          </option>
-                        ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
-                ) : (
-                  <div className={`px-4 py-3 rounded-xl border ${teamB === 'TBD' || teamB === ''
-                      ? 'bg-white/5 border-white/10 text-gray-500 italic'
-                      : 'bg-white/10 border-white/20 text-white font-semibold'
-                    }`}>
-                    {teamB === 'TBD' || teamB === '' ? 'À définir' : teamB}
-                  </div>
-                )}
-              </div>
+          {/* Teams display */}
+          {isEdit ? (
+            /* Mode Édition: Affichage simple des équipes VS */
+            <div className="flex items-center justify-center gap-4 py-4 bg-white/5 rounded-xl border border-white/10">
+              <span className="font-bold text-xl text-white">{teamA}</span>
+              <span className="text-violet-400 font-bold text-lg">VS</span>
+              <span className="font-bold text-xl text-white">{teamB}</span>
             </div>
           ) : (
-            /* Mode Ligue: équipes modifiables */
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Équipe A
-                </label>
-                {teams.length > 0 ? (
-                  <div className="relative">
-                    <select
+            /* Mode Création: Sélection des équipes */
+            isBracket ? (
+              /* Mode Bracket: équipes éditables si canEditTeams=true, sinon lecture seule */
+              <div className="grid grid-cols-2 gap-4">
+                {/* Équipe A */}
+                <div>
+                  <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
+                    Équipe A
+                  </label>
+                  {canEditTeams && (teamA === 'TBD' || teamA === '') ? (
+                    <div className="relative">
+                      <select
+                        value={teamA === 'TBD' ? '' : teamA}
+                        onChange={(e) => setTeamA(e.target.value || 'TBD')}
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 hover:bg-white/10"
+                      >
+                        <option value="" className="bg-[#1a1625] text-gray-400">Sélectionner...</option>
+                        {availableTeamsForSlotA
+                          .filter(t => t.name !== teamB) // Exclude team already selected for slot B
+                          .map((team) => (
+                            <option key={team.name} value={team.name} className="bg-[#1a1625] text-white">
+                              {team.name}
+                            </option>
+                          ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`px-4 py-3 rounded-xl border ${teamA === 'TBD' || teamA === ''
+                      ? 'bg-white/5 border-white/10 text-gray-500 italic'
+                      : 'bg-white/10 border-white/20 text-white font-semibold'
+                      }`}>
+                      {teamA === 'TBD' || teamA === '' ? 'À définir' : teamA}
+                    </div>
+                  )}
+                </div>
+
+                {/* VS */}
+                <div className="col-span-2 flex justify-center -my-2">
+                  <span className="text-violet-400 font-bold text-lg">VS</span>
+                </div>
+
+                {/* Équipe B */}
+                <div className="col-start-2 -mt-4">
+                  <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
+                    Équipe B
+                  </label>
+                  {canEditTeams && (teamB === 'TBD' || teamB === '') ? (
+                    <div className="relative">
+                      <select
+                        value={teamB === 'TBD' ? '' : teamB}
+                        onChange={(e) => setTeamB(e.target.value || 'TBD')}
+                        className="w-full px-4 py-3 bg-white/5 border-white/10 rounded-xl text-white appearance-none cursor-pointer transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 hover:bg-white/10"
+                      >
+                        <option value="" className="bg-[#1a1625] text-gray-400">Sélectionner...</option>
+                        {availableTeamsForSlotB
+                          .filter(t => t.name !== teamA) // Exclude team already selected for slot A
+                          .map((team) => (
+                            <option key={team.name} value={team.name} className="bg-[#1a1625] text-white">
+                              {team.name}
+                            </option>
+                          ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`px-4 py-3 rounded-xl border ${teamB === 'TBD' || teamB === ''
+                      ? 'bg-white/5 border-white/10 text-gray-500 italic'
+                      : 'bg-white/10 border-white/20 text-white font-semibold'
+                      }`}>
+                      {teamB === 'TBD' || teamB === '' ? 'À définir' : teamB}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* Mode Ligue: équipes modifiables */
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Équipe A
+                  </label>
+                  {teams.length > 0 ? (
+                    <div className="relative">
+                      <select
+                        value={teamA}
+                        onChange={(e) => setTeamA(e.target.value)}
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 hover:bg-white/10"
+                      >
+                        <option value="" className="bg-[#1a1625] text-gray-400">Sélectionner...</option>
+                        {availableTeamsA.map((team) => (
+                          <option key={team} value={team} className="bg-[#1a1625] text-white">
+                            {team}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
                       value={teamA}
                       onChange={(e) => setTeamA(e.target.value)}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 hover:bg-white/10"
-                    >
-                      <option value="" className="bg-[#1a1625] text-gray-400">Sélectionner...</option>
-                      {availableTeamsA.map((team) => (
-                        <option key={team} value={team} className="bg-[#1a1625] text-white">
-                          {team}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
-                ) : (
-                  <input
-                    type="text"
-                    value={teamA}
-                    onChange={(e) => setTeamA(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-                    placeholder="Nom équipe"
-                  />
-                )}
-              </div>
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+                      placeholder="Nom équipe"
+                    />
+                  )}
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Équipe B
-                </label>
-                {teams.length > 0 ? (
-                  <div className="relative">
-                    <select
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Équipe B
+                  </label>
+                  {teams.length > 0 ? (
+                    <div className="relative">
+                      <select
+                        value={teamB}
+                        onChange={(e) => setTeamB(e.target.value)}
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 hover:bg-white/10"
+                      >
+                        <option value="" className="bg-[#1a1625] text-gray-400">Sélectionner...</option>
+                        {availableTeamsB.map((team) => (
+                          <option key={team} value={team} className="bg-[#1a1625] text-white">
+                            {team}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
                       value={teamB}
                       onChange={(e) => setTeamB(e.target.value)}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 hover:bg-white/10"
-                    >
-                      <option value="" className="bg-[#1a1625] text-gray-400">Sélectionner...</option>
-                      {availableTeamsB.map((team) => (
-                        <option key={team} value={team} className="bg-[#1a1625] text-white">
-                          {team}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
-                ) : (
-                  <input
-                    type="text"
-                    value={teamB}
-                    onChange={(e) => setTeamB(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-                    placeholder="Nom équipe"
-                  />
-                )}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+                      placeholder="Nom équipe"
+                    />
+                  )}
+                </div>
               </div>
-            </div>
+            )
           )}
 
-          {/* VS indicator (ligue seulement) */}
-          {!isBracket && teamA && teamB && (
+          {/* VS indicator (ligue seulement, creation only) */}
+          {!isBracket && !isEdit && teamA && teamB && (
             <div className="flex items-center justify-center gap-4 py-2 animate-slide-up">
               <div className="flex-1 h-px bg-gradient-to-r from-transparent to-white/10" />
               <div className="px-4 py-2 bg-white/5 rounded-lg border border-white/10">
@@ -465,58 +500,75 @@ export function MatchEditModal({
             </div>
           )}
 
-          {/* Round (ligue) and Format */}
-          <div className={`grid gap-4 ${isBracket ? 'grid-cols-1' : 'grid-cols-2'}`}>
-            {!isBracket && (
+          {/* Round (ligue) and Format - Readonly in Edit */}
+          {isEdit ? (
+            <div className="flex items-center justify-between px-4 py-3 bg-white/5 rounded-lg text-sm text-gray-400">
+              <span>Journée {round}</span>
+              <span>Format {matchFormat}</span>
+            </div>
+          ) : (
+            <div className={`grid gap-4 ${isBracket ? 'grid-cols-1' : 'grid-cols-2'}`}>
+              {!isBracket && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Journée
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max={maxRound + 10}
+                    value={round}
+                    onChange={(e) => setRound(parseInt(e.target.value) || 1)}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-mono transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+                  />
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Journée
+                  Format
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  max={maxRound + 10}
-                  value={round}
-                  onChange={(e) => setRound(parseInt(e.target.value) || 1)}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-mono transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-                />
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Format
-              </label>
-              <div className="flex gap-2">
-                {MATCH_FORMATS.map(({ value, label }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setMatchFormat(value)}
-                    className={`
-                      flex-1 py-3 px-2 rounded-lg font-mono font-semibold text-sm transition-all duration-200
-                      ${matchFormat === value
-                        ? 'bg-violet-500/20 border-2 border-violet-500 text-violet-400'
-                        : 'bg-white/5 border-2 border-white/10 text-gray-400 hover:border-white/20 hover:text-gray-200'
-                      }
-                    `}
-                  >
-                    {label}
-                  </button>
-                ))}
+                <div className="flex gap-2">
+                  {MATCH_FORMATS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setMatchFormat(value)}
+                      className={`
+                        flex-1 py-3 px-2 rounded-lg font-mono font-semibold text-sm transition-all duration-200
+                        ${matchFormat === value
+                          ? 'bg-violet-500/20 border-2 border-violet-500 text-violet-400'
+                          : 'bg-white/5 border-2 border-white/10 text-gray-400 hover:border-white/20 hover:text-gray-200'
+                        }
+                      `}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Date and Time */}
+          {/* Time Only (Date is derived from Round) */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Date et Heure
-            </label>
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-medium text-gray-300">
+                Horaire du match
+              </label>
+              <span className="text-xs text-cyan-400 font-mono">
+                {roundDates[round.toString()]
+                  ? new Date(roundDates[round.toString()]).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+                  : match?.start_time
+                    ? new Date(match.start_time).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+                    : "Date non définie"
+                }
+              </span>
+            </div>
             <input
-              type="datetime-local"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
+              type="time"
+              value={timeValue}
+              onChange={(e) => setTimeValue(e.target.value)}
               className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-mono transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 [color-scheme:dark]"
             />
           </div>

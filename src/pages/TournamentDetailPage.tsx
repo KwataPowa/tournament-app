@@ -786,20 +786,24 @@ export function TournamentDetailPage() {
                               </div>
                             ) : (
                               <>
-                                {tournament.round_dates?.[round.toString()] && (
-                                  <span className="text-xs text-gray-400 flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/5 font-mono">
-                                    <Calendar className="w-3 h-3 text-cyan-400" />
-                                    {new Date(tournament.round_dates[round.toString()]).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
-                                  </span>
-                                )}
-                                {isAdmin && tournament.status === 'draft' && (
-                                  <button
-                                    onClick={() => setEditingRoundDate(round)}
-                                    className="p-1.5 hover:bg-white/10 rounded-full text-gray-500 hover:text-white transition-colors"
-                                    title="Changer la date"
+                                {tournament.round_dates?.[round.toString()] ? (
+                                  <span
+                                    onClick={() => isAdmin && setEditingRoundDate(round)}
+                                    className={`text-xs text-cyan-400 flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/5 font-mono ${isAdmin ? 'cursor-pointer hover:bg-white/10 transition-colors' : ''}`}
+                                    title={isAdmin ? "Modifier la date" : undefined}
                                   >
-                                    <Calendar className="w-3.5 h-3.5" />
-                                  </button>
+                                    {new Date(tournament.round_dates[round.toString()]).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' })}
+                                  </span>
+                                ) : (
+                                  isAdmin && (
+                                    <button
+                                      onClick={() => setEditingRoundDate(round)}
+                                      className="p-1.5 hover:bg-white/10 rounded-full text-gray-500 hover:text-white transition-colors"
+                                      title="Définir la date"
+                                    >
+                                      <Calendar className="w-3.5 h-3.5" />
+                                    </button>
+                                  )
                                 )}
                               </>
                             )}
@@ -846,6 +850,7 @@ export function TournamentDetailPage() {
           canEditTeams={canEditTeamsForMatch(editingMatch)}
           availableTeamsForSlotA={getAvailableTeamsForSlot(editingMatch, 'team_a')}
           availableTeamsForSlotB={getAvailableTeamsForSlot(editingMatch, 'team_b')}
+          roundDates={tournament?.round_dates || {}}
           onSave={handleSaveMatch}
           onSaveResult={handleSaveResult}
           onDelete={editingMatch && !isBracketFormat ? handleDeleteMatch : undefined}
