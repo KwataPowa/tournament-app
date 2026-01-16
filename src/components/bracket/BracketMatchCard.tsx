@@ -22,8 +22,7 @@ export function BracketMatchCard({
   match,
   prediction,
   isAdmin,
-  tournamentStatus,
-  onEnterResult,
+
   onPredict,
   onChangeFormat,
   onEdit,
