@@ -55,6 +55,12 @@ export function useAuth() {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            username,
+            avatar_url,
+          },
+        },
       })
 
       if (authError) {

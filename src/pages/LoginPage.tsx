@@ -70,7 +70,7 @@ export function LoginPage() {
         if (error) {
           setError(error.message)
         } else {
-          setMessage('Vérifie tes emails pour confirmer ton compte !')
+          navigate('/')
         }
       }
     } finally {

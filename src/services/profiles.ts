@@ -7,7 +7,7 @@ import type { Profile, ProfileInsert, ProfileUpdate } from '../types'
 export async function createProfile(profile: ProfileInsert): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
-    .insert(profile)
+    .upsert(profile)
     .select()
     .single()
 
