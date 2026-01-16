@@ -113,7 +113,7 @@ export function Layout() {
             </div>
             <div className="hidden sm:block">
               <h1 className="text-xl font-bold text-white tracking-tight group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-violet-400 group-hover:to-cyan-400 transition-all duration-300">
-                Pronostics
+                Tournastic
               </h1>
             </div>
           </Link>
