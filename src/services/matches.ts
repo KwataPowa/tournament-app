@@ -99,3 +99,13 @@ export async function updateMatchResultRecursive(
     throw new Error(error.message)
   }
 }
+
+export async function recalculateTournamentPoints(tournamentId: string): Promise<void> {
+  const { error } = await supabase.rpc('recalculate_tournament_points', {
+    p_tournament_id: tournamentId,
+  })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+}

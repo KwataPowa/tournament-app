@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuthContext } from '../lib/AuthContext'
 import { getTournamentWithMatches, updateTournament, deleteTournament, removeParticipant } from '../services/tournaments'
-import { createMatch, updateMatch, deleteMatch, enterMatchResult, updateMatchResultRecursive } from '../services/matches'
+import { createMatch, updateMatch, deleteMatch, enterMatchResult, updateMatchResultRecursive, recalculateTournamentPoints } from '../services/matches'
 import { getUserPredictionsForTournament, createOrUpdatePrediction } from '../services/predictions'
 import { getLeaderboard, type LeaderboardEntry } from '../services/leaderboard'
 import { useTournamentRealtime } from '../hooks/useTournamentRealtime'
@@ -29,7 +29,10 @@ import {
   Calendar,
   Plus,
   ArrowLeft,
-  Play
+  Play,
+  Check,
+  X,
+  Edit2
 } from 'lucide-react'
 
 export function TournamentDetailPage() {
@@ -54,6 +57,10 @@ export function TournamentDetailPage() {
 
   // Round date editing state
   const [editingRoundDate, setEditingRoundDate] = useState<number | null>(null)
+
+  // Points editing state
+  const [isEditingPoints, setIsEditingPoints] = useState(false)
+  const [pointsForm, setPointsForm] = useState({ correct_winner_points: 0, exact_score_bonus: 0 })
 
   // Predictions state
   const [predictions, setPredictions] = useState<Prediction[]>([])
@@ -474,6 +481,34 @@ export function TournamentDetailPage() {
     }
   }
 
+  const handleSavePoints = async () => {
+    if (!tournament) return
+    setActionLoading(true)
+    try {
+      // 1. Update tournament rules
+      const updated = await updateTournament(tournament.id, {
+        scoring_rules: pointsForm
+      })
+      setTournament(updated)
+
+      // 2. Recalculate all points
+      await recalculateTournamentPoints(tournament.id)
+
+      // 3. Refresh data
+      await loadLeaderboard()
+      if (user?.id) {
+        const userPredictions = await getUserPredictionsForTournament(tournament.id, user.id)
+        setPredictions(userPredictions)
+      }
+
+      setIsEditingPoints(false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erreur sauvegarde points')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -563,19 +598,80 @@ export function TournamentDetailPage() {
       */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Card 1: Règles */}
-        <Card className="flex-1">
-          <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-            <ScrollText className="w-4 h-4 text-gray-400" /> Règles
-          </h2>
+        <Card className={`flex-1 ${isEditingPoints ? 'border-violet-500/50 bg-violet-500/5' : ''}`}>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+              <ScrollText className="w-4 h-4 text-gray-400" /> Règles
+            </h2>
+            {isAdmin && !isEditingPoints && (
+              <button
+                onClick={() => {
+                  setPointsForm(tournament.scoring_rules)
+                  setIsEditingPoints(true)
+                }}
+                className="text-gray-500 hover:text-white transition-colors"
+                title="Modifier les points"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {isAdmin && isEditingPoints && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleSavePoints}
+                  disabled={actionLoading}
+                  className="p-1 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-colors"
+                  title="Sauvegarder"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setIsEditingPoints(false)}
+                  disabled={actionLoading}
+                  className="p-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-colors"
+                  title="Annuler"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-4 text-sm h-9">
-            <div className="flex items-center gap-2">
-              <span className="text-gray-400">Vainqueur:</span>
-              <span className="font-mono text-violet-400 font-bold">{tournament.scoring_rules.correct_winner_points} pts</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-gray-400">Score Exact:</span>
-              <span className="font-mono text-cyan-400 font-bold">{tournament.scoring_rules.exact_score_bonus} pts</span>
-            </div>
+            {isEditingPoints ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400">Vainqueur:</span>
+                  <input
+                    type="number"
+                    value={pointsForm.correct_winner_points}
+                    onChange={(e) => setPointsForm(prev => ({ ...prev, correct_winner_points: parseInt(e.target.value) || 0 }))}
+                    className="w-12 bg-black/30 border border-white/10 rounded px-1 py-0.5 text-center font-mono text-violet-400 font-bold focus:border-violet-500/50 outline-none"
+                    autoFocus
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400">Score Exact:</span>
+                  <input
+                    type="number"
+                    value={pointsForm.exact_score_bonus}
+                    onChange={(e) => setPointsForm(prev => ({ ...prev, exact_score_bonus: parseInt(e.target.value) || 0 }))}
+                    className="w-12 bg-black/30 border border-white/10 rounded px-1 py-0.5 text-center font-mono text-cyan-400 font-bold focus:border-cyan-500/50 outline-none"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400">Vainqueur:</span>
+                  <span className="font-mono text-violet-400 font-bold">{tournament.scoring_rules.correct_winner_points} pts</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400">Score Exact:</span>
+                  <span className="font-mono text-cyan-400 font-bold">{tournament.scoring_rules.exact_score_bonus} pts</span>
+                </div>
+              </>
+            )}
           </div>
         </Card>
 
