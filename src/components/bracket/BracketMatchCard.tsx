@@ -1,7 +1,4 @@
-import { useState, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import type { Match, Prediction, MatchFormat } from '../../types'
-import { ChevronDown } from 'lucide-react'
 
 type BracketMatchCardProps = {
   match: Match
@@ -16,7 +13,7 @@ type BracketMatchCardProps = {
   teams?: { name: string; logo?: string }[]
 }
 
-const FORMAT_OPTIONS: MatchFormat[] = ['BO1', 'BO3', 'BO5', 'BO7']
+
 
 export function BracketMatchCard({
   match,
@@ -24,27 +21,9 @@ export function BracketMatchCard({
   isAdmin,
 
   onPredict,
-  onChangeFormat,
   onEdit,
   teams,
 }: BracketMatchCardProps) {
-  const [showFormatMenu, setShowFormatMenu] = useState(false)
-  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
-  const buttonRef = useRef<HTMLButtonElement>(null)
-
-  const handleOpenMenu = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect()
-      setMenuPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX
-      })
-      setShowFormatMenu((prev) => !prev)
-    }
-  }
-
-
   const isTBD = match.team_a === 'TBD' || match.team_b === 'TBD'
   const hasResult = match.result !== null
   const isBye = match.is_bye
@@ -102,62 +81,10 @@ export function BracketMatchCard({
           M{(match.bracket_position ?? 0) + 1}
         </span>
 
-        {/* Format badge (BO) - clickable for admin */}
-        {isAdmin && onChangeFormat ? (
-          <>
-            <button
-              ref={buttonRef}
-              onClick={handleOpenMenu}
-              className="flex flex-col items-center gap-0.5 w-full px-0.5 py-1 rounded hover:bg-white/5 transition-colors group cursor-pointer"
-              title="Changer le format"
-            >
-              <span className="text-[9px] font-bold text-violet-400 group-hover:text-violet-300">
-                {match.match_format || 'BO3'}
-              </span>
-              <ChevronDown className="w-2.5 h-2.5 text-violet-500/50 group-hover:text-violet-400" />
-            </button>
-            {showFormatMenu && createPortal(
-              <>
-                <div
-                  className="fixed inset-0 z-[9998]"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setShowFormatMenu(false)
-                  }}
-                />
-                <div
-                  className="absolute z-[9999] bg-gray-900 border border-white/10 rounded-lg shadow-xl overflow-hidden min-w-[80px]"
-                  style={{
-                    top: menuPosition.top,
-                    left: menuPosition.left,
-                  }}
-                >
-                  {FORMAT_OPTIONS.map((fmt) => (
-                    <button
-                      key={fmt}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onChangeFormat(match, fmt)
-                        setShowFormatMenu(false)
-                      }}
-                      className={`
-                        block w-full px-4 py-2 text-sm font-mono text-left transition-colors
-                        ${match.match_format === fmt ? 'bg-violet-500/20 text-violet-400' : 'text-gray-300 hover:bg-white/10'}
-                      `}
-                    >
-                      {fmt}
-                    </button>
-                  ))}
-                </div>
-              </>,
-              document.body
-            )}
-          </>
-        ) : (
-          <span className="text-[10px] font-bold font-mono text-gray-500">
-            {match.match_format || 'BO3'}
-          </span>
-        )}
+        {/* Format badge (BO) - display only */}
+        <span className="text-[10px] font-bold font-mono text-gray-500">
+          {match.match_format || 'BO3'}
+        </span>
       </div>
 
       {/* RIGHT CONTENT: Date & Teams */}
