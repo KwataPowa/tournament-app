@@ -12,6 +12,8 @@ import {
   Swords,
 } from 'lucide-react'
 import { AvatarDisplay } from './AvatarDisplay'
+import { Footer } from './layout/Footer'
+import { CookieConsent } from './legal/CookieConsent'
 
 export function Layout() {
   const { signOut } = useAuthContext()
@@ -205,6 +207,9 @@ export function Layout() {
           <Outlet />
         </div>
       </main>
+
+      <Footer />
+      <CookieConsent />
 
       {/* Mobile Navigation (Bottom Bar) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0f0a1e]/90 backdrop-blur-xl border-t border-white/10 pb-6">
