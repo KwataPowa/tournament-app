@@ -320,7 +320,7 @@ export function MatchEditModal({
         {/* Content */}
         <form onSubmit={handleSubmit} className="relative p-6 space-y-6">
           {/* Teams display */}
-          {isEdit ? (
+          {isEdit && isBracket ? (
             /* Mode Édition: Affichage simple des équipes VS */
             <div className="flex items-center justify-center gap-4 py-4 bg-white/5 rounded-xl border border-white/10">
               <span className="font-bold text-xl text-white">{teamA}</span>
@@ -488,7 +488,7 @@ export function MatchEditModal({
           )}
 
           {/* VS indicator (ligue seulement, creation only) */}
-          {!isBracket && !isEdit && teamA && teamB && (
+          {!isBracket && teamA && teamB && (
             <div className="flex items-center justify-center gap-4 py-2 animate-slide-up">
               <div className="flex-1 h-px bg-gradient-to-r from-transparent to-white/10" />
               <div className="px-4 py-2 bg-white/5 rounded-lg border border-white/10">
@@ -501,7 +501,7 @@ export function MatchEditModal({
           )}
 
           {/* Round (ligue) and Format - Readonly in Edit */}
-          {isEdit ? (
+          {isEdit && isBracket ? (
             <div className="flex items-center justify-between px-4 py-3 bg-white/5 rounded-lg text-sm text-gray-400">
               <span>Journée {round}</span>
               <span>Format {matchFormat}</span>

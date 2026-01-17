@@ -109,3 +109,24 @@ export function isMatchLocked(match: { locked_at: string | null; result: unknown
 
   return false
 }
+
+export type MatchPredictionWithUser = {
+  user_id: string
+  username: string
+  avatar_url: string | null
+  predicted_winner: string
+  predicted_score: string
+  points_earned: number | null
+  created_at: string
+}
+
+export async function getMatchPredictions(matchId: string): Promise<MatchPredictionWithUser[]> {
+  const { data, error } = await supabase
+    .rpc('get_match_predictions', { p_match_id: matchId })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return data as MatchPredictionWithUser[]
+}

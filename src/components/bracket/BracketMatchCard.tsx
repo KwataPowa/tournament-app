@@ -1,4 +1,7 @@
+import { useState } from 'react'
 import type { Match, Prediction, MatchFormat } from '../../types'
+import { Eye } from 'lucide-react'
+import { PredictionsListModal } from '../PredictionsListModal'
 
 type BracketMatchCardProps = {
   match: Match
@@ -24,6 +27,8 @@ export function BracketMatchCard({
   onEdit,
   teams,
 }: BracketMatchCardProps) {
+  const [showPredictions, setShowPredictions] = useState(false)
+
   const isTBD = match.team_a === 'TBD' || match.team_b === 'TBD'
   const hasResult = match.result !== null
   const isBye = match.is_bye
@@ -38,6 +43,12 @@ export function BracketMatchCard({
     if (isAdmin && onEdit) {
       onEdit(match)
       return
+    }
+
+    // Si le match est terminé, on peut cliquer pour voir les stats/pronos (sauf si admin qui édite déjà)
+    if (hasResult && !isAdmin) {
+      // Optionnel : rendre tout le match cliquable pour voir les pronos ?
+      // Pour l'instant on garde le bouton dédié pour être explicite
     }
 
     if (isTBD) return
@@ -247,6 +258,26 @@ export function BracketMatchCard({
               {prediction.predicted_winner} ({prediction.predicted_score}) → {predictionCorrect ? `+${prediction?.points_earned ?? 0}` : '0'} pts
             </span>
           </div>
+        )}
+
+        {/* View Predictions Button (After Result, regardless of if user predicted) */}
+        {hasResult && !isBye && (
+          <div className="px-2 py-1.5 border-t border-white/5 flex gap-1 justify-center">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowPredictions(true)
+              }}
+              className="flex text-[10px] items-center gap-1.5 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <Eye className="w-3 h-3" />
+              Voir les pronos
+            </button>
+          </div>
+        )}
+
+        {showPredictions && (
+          <PredictionsListModal match={match} onClose={() => setShowPredictions(false)} />
         )}
 
         {/* Bye indicator handled in header or subtle styling */}

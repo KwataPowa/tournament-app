@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Match, Prediction, MatchFormat } from '../types'
-import { ChevronDown, Lock } from 'lucide-react'
+import { ChevronDown, Lock, Eye } from 'lucide-react'
+import { PredictionsListModal } from './PredictionsListModal'
 
 type LeagueMatchRowProps = {
     match: Match
@@ -26,6 +27,7 @@ export function LeagueMatchRow({
     onChangeFormat,
 }: LeagueMatchRowProps) {
     const [showFormatMenu, setShowFormatMenu] = useState(false)
+    const [showPredictions, setShowPredictions] = useState(false)
 
     const isTBD = match.team_a === 'TBD' || match.team_b === 'TBD'
     const hasResult = match.result !== null
@@ -165,6 +167,10 @@ export function LeagueMatchRow({
                 </div>
             </div>
 
+            {showPredictions && (
+                <PredictionsListModal match={match} onClose={() => setShowPredictions(false)} />
+            )}
+
             {/* RIGHT: Actions, Scores, Predictions */}
             <div className="flex items-center gap-4 justify-self-end w-full md:w-auto justify-end">
 
@@ -188,6 +194,20 @@ export function LeagueMatchRow({
                             )}
                         </div>
                     </div>
+                )}
+
+                {/* View Predictions Button (After Result) */}
+                {hasResult && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            setShowPredictions(true)
+                        }}
+                        className="p-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-colors border border-white/5"
+                        title="Voir les pronostics des joueurs"
+                    >
+                        <Eye className="w-4 h-4" />
+                    </button>
                 )}
 
 
