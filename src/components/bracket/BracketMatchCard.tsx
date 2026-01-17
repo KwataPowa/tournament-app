@@ -32,6 +32,13 @@ export function BracketMatchCard({
   const isTBD = match.team_a === 'TBD' || match.team_b === 'TBD'
   const hasResult = match.result !== null
   const isBye = match.is_bye
+
+  // Locking logic
+  const now = new Date()
+  const startTime = match.start_time ? new Date(match.start_time) : null
+  const isStarted = startTime ? now >= startTime : false
+  const isPredictionLocked = hasResult || isStarted
+
   const isClickable = (!isBye && !isTBD) || isAdmin
 
 
@@ -51,10 +58,16 @@ export function BracketMatchCard({
       // Pour l'instant on garde le bouton dédié pour être explicite
     }
 
-    if (isTBD) return
+    // Check lock status in real-time
+    const currentNow = new Date()
+    const currentStartTime = match.start_time ? new Date(match.start_time) : null
+    const currentIsStarted = currentStartTime ? currentNow >= currentStartTime : false
+    const currentIsLocked = hasResult || currentIsStarted
 
-    // Les utilisateurs non-admin peuvent pronostiquer avant le résultat
-    if (!isAdmin && !hasResult && onPredict) {
+    if (currentIsLocked && !isAdmin) return
+
+    // Les utilisateurs non-admin peuvent pronostiquer avant le résultat ET avant le début du match
+    if (!isAdmin && !currentIsLocked && onPredict) {
       onPredict(match)
     }
   }
@@ -207,17 +220,28 @@ export function BracketMatchCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation()
+                  // Check lock status in real-time
+                  const currentNow = new Date()
+                  const currentStartTime = match.start_time ? new Date(match.start_time) : null
+                  const currentIsStarted = currentStartTime ? currentNow >= currentStartTime : false
+
+                  if (currentIsStarted || hasResult) {
+                    alert("Le match a commencé ou est terminé, les pronostics sont verrouillés.")
+                    return
+                  }
                   if (!isTBD) onPredict(match)
                 }}
-                disabled={isTBD}
+                disabled={isTBD || isPredictionLocked}
                 className={`
                   flex-1 px-2 py-1 text-[10px] font-medium rounded transition-colors
                   ${isTBD
                     ? 'bg-white/5 text-gray-500 cursor-not-allowed'
-                    : 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 cursor-pointer'}
+                    : isPredictionLocked
+                      ? 'bg-white/5 text-gray-500 cursor-not-allowed' // Locked state
+                      : 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 cursor-pointer'}
                 `}
               >
-                Pronostiquer
+                {isPredictionLocked ? 'Verrouillé' : 'Pronostiquer'}
               </button>
             )}
             {/* Bouton modifier pronostic */}
@@ -225,10 +249,25 @@ export function BracketMatchCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation()
+                  // Check lock status in real-time
+                  const currentNow = new Date()
+                  const currentStartTime = match.start_time ? new Date(match.start_time) : null
+                  const currentIsStarted = currentStartTime ? currentNow >= currentStartTime : false
+
+                  if (currentIsStarted || hasResult) {
+                    alert("Le match a commencé ou est terminé, les pronostics sont verrouillés.")
+                    return
+                  }
                   onPredict!(match)
                 }}
-                className="flex-1 px-2 py-1 text-[10px] font-medium rounded bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 transition-colors h-auto whitespace-normal text-center leading-tight cursor-pointer"
-                title={`Modifier: ${prediction.predicted_winner} (${prediction.predicted_score})`}
+                className={`
+                  flex-1 px-2 py-1 text-[10px] font-medium rounded transition-colors h-auto whitespace-normal text-center leading-tight
+                  ${isPredictionLocked
+                    ? 'bg-white/5 text-gray-400 cursor-default'
+                    : 'bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 cursor-pointer'}
+                `}
+                title={isPredictionLocked ? 'Pronostic verrouillé' : `Modifier: ${prediction.predicted_winner} (${prediction.predicted_score})`}
+                disabled={isPredictionLocked}
               >
                 <span className="block">{prediction.predicted_winner}</span>
                 <span className="text-cyan-300 font-mono">({prediction.predicted_score})</span>

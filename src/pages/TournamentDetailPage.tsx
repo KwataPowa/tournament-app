@@ -979,6 +979,7 @@ export function TournamentDetailPage() {
                             onEdit={openEditMatch}
                             onPredict={setPredictionMatch}
                             onChangeFormat={handleChangeFormat}
+                            roundDate={tournament.round_dates?.[match.round.toString()]}
                           />
                         )) || (
                             <div className="text-center py-8 text-gray-500 italic">
@@ -1032,6 +1033,7 @@ export function TournamentDetailPage() {
           existingPrediction={predictionsByMatch[predictionMatch.id] || null}
           onSave={handleSavePrediction}
           onClose={() => setPredictionMatch(null)}
+          roundDate={tournament.round_dates?.[predictionMatch.round.toString()]}
         />
       )}
     </div>

@@ -12,6 +12,7 @@ type LeagueMatchRowProps = {
     onPredict?: (match: Match) => void
     onEdit?: (match: Match) => void
     onChangeFormat?: (match: Match, format: MatchFormat) => void
+    roundDate?: string
 }
 
 const FORMAT_OPTIONS: MatchFormat[] = ['BO1', 'BO3', 'BO5', 'BO7']
@@ -25,6 +26,7 @@ export function LeagueMatchRow({
     onPredict,
     onEdit,
     onChangeFormat,
+    roundDate,
 }: LeagueMatchRowProps) {
     const [showFormatMenu, setShowFormatMenu] = useState(false)
     const [showPredictions, setShowPredictions] = useState(false)
@@ -32,12 +34,25 @@ export function LeagueMatchRow({
     const isTBD = match.team_a === 'TBD' || match.team_b === 'TBD'
     const hasResult = match.result !== null
     const isBye = match.is_bye
+
+    // Locking logic
+    const now = new Date()
+    const effectiveStartTime = match.start_time
+        ? new Date(match.start_time)
+        : roundDate
+            ? new Date(roundDate)
+            : null
+
+    const isStarted = effectiveStartTime ? now >= effectiveStartTime : false
+    const isPredictionLocked = hasResult || isStarted
+
     // Clickable for edit in draft, or prediction in active
-    const isClickable = (!isBye && !isTBD) || (tournamentStatus === 'draft' && isAdmin)
+    const isClickable = isAdmin
+        ? true
+        : (!isBye && !isTBD && !isPredictionLocked && !!onPredict)
 
     // Actions available
-    // Pronostics disponibles dès qu'un match a ses équipes définies (avant résultat)
-    const canPredict = !isTBD && !isBye && !hasResult && onPredict
+    const canPredict = !isTBD && !isBye && !isPredictionLocked && onPredict
 
     const handleRowClick = () => {
         if (isBye) return
@@ -50,8 +65,22 @@ export function LeagueMatchRow({
 
         if (isTBD) return
 
-        // Les non-admins peuvent pronostiquer avant le résultat
-        if (!isAdmin && !hasResult && onPredict) {
+        // Check lock status in real-time
+        const currentNow = new Date()
+        const currentEffectiveTime = match.start_time
+            ? new Date(match.start_time)
+            : roundDate
+                ? new Date(roundDate)
+                : null
+        const currentIsStarted = currentEffectiveTime ? currentNow >= currentEffectiveTime : false
+        const currentIsLocked = hasResult || currentIsStarted
+
+        if (currentIsLocked) {
+            return
+        }
+
+        // Les non-admins peuvent pronostiquer avant le résultat ET si pas verrouillé
+        if (!isAdmin && !currentIsLocked && onPredict) {
             onPredict(match)
         }
     }
@@ -220,6 +249,18 @@ export function LeagueMatchRow({
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation()
+                                    // Check lock status in real-time
+                                    const currentNow = new Date()
+                                    const currentEffectiveTime = match.start_time
+                                        ? new Date(match.start_time)
+                                        : roundDate
+                                            ? new Date(roundDate)
+                                            : null
+                                    const currentIsStarted = currentEffectiveTime ? currentNow >= currentEffectiveTime : false
+                                    if (currentIsStarted || hasResult) {
+                                        alert("Le match a commencé ou est terminé, les pronostics sont verrouillés.")
+                                        return
+                                    }
                                     onPredict!(match)
                                 }}
                                 className="px-3 py-1.5 text-xs font-medium rounded-md bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 transition-colors border border-cyan-500/20 cursor-pointer"
@@ -232,6 +273,14 @@ export function LeagueMatchRow({
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation()
+                                    // Check lock status in real-time
+                                    const currentNow = new Date()
+                                    const currentStartTime = match.start_time ? new Date(match.start_time) : null
+                                    const currentIsStarted = currentStartTime ? currentNow >= currentStartTime : false
+                                    if (currentIsStarted || hasResult) {
+                                        alert("Le match a commencé ou est terminé, les pronostics sont verrouillés.")
+                                        return
+                                    }
                                     onPredict!(match)
                                 }}
                                 className="px-3 py-1.5 text-xs font-medium rounded-md text-gray-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
@@ -243,7 +292,9 @@ export function LeagueMatchRow({
                         {!hasResult && !isTBD && !canPredict && (
                             <div className="flex items-center gap-1.5 text-gray-500 bg-white/5 px-2 py-1 rounded">
                                 <Lock className="w-3 h-3" />
-                                <span className="text-[10px] uppercase font-medium">À venir</span>
+                                <span className="text-[10px] uppercase font-medium">
+                                    {isStarted ? 'Verrouillé' : 'À venir'}
+                                </span>
                             </div>
                         )}
                     </div>

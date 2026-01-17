@@ -9,6 +9,7 @@ type PredictionModalProps = {
   existingPrediction: Prediction | null
   onSave: (prediction: { predicted_winner: string; predicted_score: string }) => Promise<void>
   onClose: () => void
+  roundDate?: string
 }
 
 // Generates possible scores for a given format
@@ -41,6 +42,7 @@ export function PredictionModal({
   existingPrediction,
   onSave,
   onClose,
+  roundDate,
 }: PredictionModalProps) {
   const initialWinner = existingPrediction?.predicted_winner === match.team_a
     ? 'team_a'
@@ -63,12 +65,27 @@ export function PredictionModal({
     setScore(newPossibleScores[0] || '')
   }
 
+  // Check lock status in real-time
+  const currentNow = new Date()
+  const currentEffectiveTime = match.start_time
+    ? new Date(match.start_time)
+    : roundDate
+      ? new Date(roundDate)
+      : null
+  const currentIsStarted = currentEffectiveTime ? currentNow >= currentEffectiveTime : false
+  const isLocked = match.result !== null || currentIsStarted
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
 
     if (!winner) {
       setError('Sélectionne le vainqueur')
+      return
+    }
+
+    if (isLocked) {
+      setError('Le match a commencé, les pronostics sont verrouillés.')
       return
     }
 
@@ -210,11 +227,11 @@ export function PredictionModal({
           <div className="flex gap-3 pt-2">
             <Button
               type="submit"
-              disabled={loading || !winner || !score}
+              disabled={loading || !winner || !score || isLocked}
               isLoading={loading}
               className="flex-1"
             >
-              {isEditing ? 'Modifier' : 'Valider le pronostic'}
+              {isLocked ? 'Verrouillé' : (isEditing ? 'Modifier' : 'Valider le pronostic')}
             </Button>
             <Button
               type="button"
