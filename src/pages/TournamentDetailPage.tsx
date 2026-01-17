@@ -32,7 +32,9 @@ import {
   Play,
   Check,
   X,
-  Edit2
+  Edit2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 
 export function TournamentDetailPage() {
@@ -99,7 +101,28 @@ export function TournamentDetailPage() {
     .map(Number)
     .sort((a, b) => a - b)
 
+
   const maxRound = rounds.length > 0 ? Math.max(...rounds) : 0
+
+  // State for selected round (League view)
+  const [selectedRound, setSelectedRound] = useState<number>(1)
+
+  // Initialize selectedRound to the first round with unplayed matches
+  useEffect(() => {
+    if (matches.length > 0 && !isBracketFormat) {
+      // Find first round with at least one unplayed match
+      const activeRound = rounds.find(r =>
+        matchesByRound[r]?.some(m => m.result === null)
+      )
+
+      if (activeRound) {
+        setSelectedRound(activeRound)
+      } else {
+        // If all played, show the last round
+        setSelectedRound(maxRound || 1)
+      }
+    }
+  }, [matches.length, isBracketFormat, maxRound]) // Only run on load/format change to avoid jumping while editing
 
   // Utiliser les équipes du tournoi (normalisées pour rétrocompatibilité)
   const teams = normalizeTeams(tournament?.teams as (string | { name: string; logo?: string })[])
@@ -844,7 +867,7 @@ export function TournamentDetailPage() {
                   </h2>
                   {isAdmin && (
                     <button
-                      onClick={() => openAddMatch(1)}
+                      onClick={() => openAddMatch(selectedRound)}
                       className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg bg-violet-500/10 text-violet-300 border border-violet-500/20 hover:bg-violet-500/20 hover:border-violet-500/30 hover:text-white transition-all shadow-sm shadow-violet-900/10"
                     >
                       <Plus className="w-3.5 h-3.5" /> Ajouter un match
@@ -858,72 +881,112 @@ export function TournamentDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {rounds.map((round) => (
-                      <div key={round} className="space-y-3">
-                        <div className="flex items-center gap-4">
-                          <div className="h-px bg-white/10 flex-1"></div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-violet-400 uppercase tracking-wider">Journée {round}</span>
+                    {/* Round Selector */}
+                    <div className="flex items-center justify-between bg-black/20 rounded-lg p-2 border border-white/5">
+                      <button
+                        onClick={() => setSelectedRound(prev => Math.max(1, prev - 1))}
+                        disabled={selectedRound <= 1}
+                        className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                      >
+                        <ChevronLeft className="w-5 h-5 text-gray-400" />
+                      </button>
 
-                            {/* Edit Round Date */}
-                            {editingRoundDate === round ? (
-                              <div className="flex items-center gap-1 bg-white/10 rounded px-1 animate-in fade-in zoom-in-95 duration-200">
-                                <input
-                                  type="date"
-                                  autoFocus
-                                  className="bg-transparent text-white text-xs border-none focus:ring-0 p-1 font-mono [color-scheme:dark] outline-none"
-                                  defaultValue={tournament.round_dates?.[round.toString()] || ''}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleSaveRoundDate(round, e.currentTarget.value)
-                                    if (e.key === 'Escape') setEditingRoundDate(null)
-                                  }}
-                                  onBlur={(e) => handleSaveRoundDate(round, e.target.value)}
-                                />
-                              </div>
-                            ) : (
-                              <>
-                                {tournament.round_dates?.[round.toString()] ? (
-                                  <span
-                                    onClick={() => isAdmin && setEditingRoundDate(round)}
-                                    className={`text-xs text-cyan-400 flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/5 font-mono ${isAdmin ? 'cursor-pointer hover:bg-white/10 transition-colors' : ''}`}
-                                    title={isAdmin ? "Modifier la date" : undefined}
-                                  >
-                                    {new Date(tournament.round_dates[round.toString()]).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' })}
-                                  </span>
-                                ) : (
-                                  isAdmin && (
-                                    <button
-                                      onClick={() => setEditingRoundDate(round)}
-                                      className="p-1.5 hover:bg-white/10 rounded-full text-gray-500 hover:text-white transition-colors"
-                                      title="Définir la date"
-                                    >
-                                      <Calendar className="w-3.5 h-3.5" />
-                                    </button>
-                                  )
-                                )}
-                              </>
-                            )}
-                          </div>
-                          <div className="h-px bg-white/10 flex-1"></div>
-                        </div>
-
-                        <div className="space-y-3">
-                          {matchesByRound[round].map((match) => (
-                            <LeagueMatchRow
-                              key={match.id}
-                              match={match}
-                              prediction={predictionsByMatch[match.id]}
-                              isAdmin={isAdmin}
-                              teams={teams}
-                              tournamentStatus={tournament.status}
-                              onEdit={openEditMatch}
-                              onPredict={setPredictionMatch}
-                              onChangeFormat={handleChangeFormat}
-                            />
-                          ))}
-                        </div>
+                      <div className="flex gap-2 overflow-x-auto px-2 max-w-[200px] sm:max-w-md md:max-w-xl scrollbar-hide">
+                        {rounds.map(round => (
+                          <button
+                            key={round}
+                            onClick={() => setSelectedRound(round)}
+                            className={`
+                              px-4 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-all
+                              ${selectedRound === round
+                                ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/20'
+                                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                              }
+                            `}
+                          >
+                            Journée {round}
+                          </button>
+                        ))}
                       </div>
-                    ))}
+
+                      <button
+                        onClick={() => setSelectedRound(prev => Math.min(maxRound, prev + 1))}
+                        disabled={selectedRound >= maxRound}
+                        className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                      >
+                        <ChevronRight className="w-5 h-5 text-gray-400" />
+                      </button>
+                    </div>
+
+                    {/* Selected Round Matches */}
+                    <div className="space-y-3 animate-in fade-in slide-in-from-right-4 duration-300" key={selectedRound}>
+                      <div className="flex items-center gap-4">
+                        <div className="h-px bg-white/10 flex-1"></div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-violet-400 uppercase tracking-wider">Journée {selectedRound}</span>
+
+                          {/* Edit Round Date */}
+                          {editingRoundDate === selectedRound ? (
+                            <div className="flex items-center gap-1 bg-white/10 rounded px-1 animate-in fade-in zoom-in-95 duration-200">
+                              <input
+                                type="date"
+                                autoFocus
+                                className="bg-transparent text-white text-xs border-none focus:ring-0 p-1 font-mono [color-scheme:dark] outline-none"
+                                defaultValue={tournament.round_dates?.[selectedRound.toString()] || ''}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSaveRoundDate(selectedRound, e.currentTarget.value)
+                                  if (e.key === 'Escape') setEditingRoundDate(null)
+                                }}
+                                onBlur={(e) => handleSaveRoundDate(selectedRound, e.target.value)}
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              {tournament.round_dates?.[selectedRound.toString()] ? (
+                                <span
+                                  onClick={() => isAdmin && setEditingRoundDate(selectedRound)}
+                                  className={`text-xs text-cyan-400 flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/5 font-mono ${isAdmin ? 'cursor-pointer hover:bg-white/10 transition-colors' : ''}`}
+                                  title={isAdmin ? "Modifier la date" : undefined}
+                                >
+                                  {new Date(tournament.round_dates[selectedRound.toString()]).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' })}
+                                </span>
+                              ) : (
+                                isAdmin && (
+                                  <button
+                                    onClick={() => setEditingRoundDate(selectedRound)}
+                                    className="p-1.5 hover:bg-white/10 rounded-full text-gray-500 hover:text-white transition-colors"
+                                    title="Définir la date"
+                                  >
+                                    <Calendar className="w-3.5 h-3.5" />
+                                  </button>
+                                )
+                              )}
+                            </>
+                          )}
+                        </div>
+                        <div className="h-px bg-white/10 flex-1"></div>
+                      </div>
+
+                      <div className="space-y-3">
+                        {matchesByRound[selectedRound]?.map((match) => (
+                          <LeagueMatchRow
+                            key={match.id}
+                            match={match}
+                            prediction={predictionsByMatch[match.id]}
+                            isAdmin={isAdmin}
+                            teams={teams}
+                            tournamentStatus={tournament.status}
+                            onEdit={openEditMatch}
+                            onPredict={setPredictionMatch}
+                            onChangeFormat={handleChangeFormat}
+                          />
+                        )) || (
+                            <div className="text-center py-8 text-gray-500 italic">
+                              Aucun match dans cette journée.
+                            </div>
+                          )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </Card>
