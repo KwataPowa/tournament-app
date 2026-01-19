@@ -208,22 +208,22 @@ export function LeaderboardTable({
       )}
 
       {/* Full table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
+      <div className="overflow-x-auto scrollbar-hide">
+        <table className="min-w-full table-fixed">
           <thead>
             <tr className="border-b border-white/10">
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider w-16">
+              <th className="px-1 md:px-4 py-3 text-left text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-wider w-8 md:w-16">
                 #
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              <th className="px-1 md:px-4 py-3 text-left text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-wider">
                 Joueur
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">
-                Points
+              <th className="px-1 md:px-4 py-3 text-right text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-wider w-16 md:w-28">
+                Pts
               </th>
               {(isAdmin && (onRemoveParticipant || onUpdateBonus)) && (
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider w-20">
-                  Actions
+                <th className="px-1 md:px-4 py-3 text-center text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-wider w-10 md:w-20">
+                  <span className="hidden md:inline">Actions</span>
                 </th>
               )}
             </tr>
@@ -235,36 +235,36 @@ export function LeaderboardTable({
                 className={`transition-all duration-300 ${getRowStyle(entry)}`}
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
-                <td className="px-4 py-3.5 whitespace-nowrap">
+                <td className="px-1 md:px-4 py-3.5 whitespace-nowrap">
                   <div className="flex items-center justify-center">
                     {getRankDisplay(entry.rank ?? 0)}
                   </div>
                 </td>
-                <td className="px-4 py-3.5 whitespace-nowrap">
-                  <div className="flex items-center gap-3">
+                <td className="px-1 md:px-4 py-3.5 whitespace-nowrap overflow-hidden">
+                  <div className="flex items-center gap-2 md:gap-3">
                     {getAvatarDisplay(entry)}
-                    <div className="flex flex-col">
-                      <span className={`font-semibold ${entry.isCurrentUser ? 'text-violet-300' : 'text-gray-100'}`}>
+                    <div className="flex flex-col min-w-0">
+                      <span className={`font-semibold text-sm md:text-base truncate max-w-[100px] xs:max-w-[140px] md:max-w-none block ${entry.isCurrentUser ? 'text-violet-300' : 'text-gray-100'}`}>
                         {entry.username}
                       </span>
                       {entry.isCurrentUser && (
-                        <span className="text-[10px] text-violet-400 uppercase tracking-wider font-semibold">
-                          C'est toi !
+                        <span className="text-[9px] md:text-[10px] text-violet-400 uppercase tracking-wider font-semibold">
+                          Moi
                         </span>
                       )}
                     </div>
                   </div>
                 </td>
 
-                <td className="px-4 py-3.5 whitespace-nowrap text-right">
-                  <div className="flex items-center justify-end gap-2">
+                <td className="px-1 md:px-4 py-3.5 whitespace-nowrap text-right">
+                  <div className="flex items-center justify-end gap-0.5 md:gap-2">
                     {entry.bonus_points !== 0 && (
-                      <span className="text-xs text-green-400 font-mono mr-1" title="Points bonus admin">
+                      <span className="text-[9px] md:text-xs text-green-400 font-mono mr-0.5 md:mr-1" title="Points bonus admin">
                         ({entry.bonus_points > 0 ? '+' : ''}{entry.bonus_points})
                       </span>
                     )}
                     <span className={`
-                      font-mono font-bold text-xl
+                      font-mono font-bold text-lg md:text-xl
                       ${entry.rank === 1 ? 'text-yellow-400 text-glow-gold' :
                         entry.rank === 2 ? 'text-gray-300' :
                           entry.rank === 3 ? 'text-amber-500' :
@@ -274,12 +274,12 @@ export function LeaderboardTable({
                     `}>
                       {entry.total_points}
                     </span>
-                    <span className="text-xs text-gray-500 font-medium">pts</span>
+                    <span className="hidden md:inline text-xs text-gray-500 font-medium ml-1">pts</span>
                   </div>
                 </td>
                 {(isAdmin && (onRemoveParticipant || onUpdateBonus)) && (
-                  <td className="px-4 py-3.5 whitespace-nowrap text-center">
-                    <div className="flex items-center justify-center gap-2">
+                  <td className="px-1 md:px-4 py-3.5 whitespace-nowrap text-center">
+                    <div className="flex items-center justify-center gap-1 md:gap-2">
                       {onUpdateBonus && (
                         <button
                           onClick={() => handleEditBonus(entry)}

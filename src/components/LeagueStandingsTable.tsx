@@ -78,9 +78,9 @@ export function LeagueStandingsTable({ teams, matches }: LeagueStandingsTablePro
                     <tr className="border-b border-white/10 bg-white/5 text-gray-400 font-medium">
                         <th className="px-3 py-2 text-left w-10">#</th>
                         <th className="px-3 py-2 text-left">Équipe</th>
-                        <th className="px-3 py-2 text-center w-10" title="Joués">J</th>
-                        <th className="px-3 py-2 text-center w-10 text-green-400" title="Gagnés">G</th>
-                        <th className="px-3 py-2 text-center w-10 text-red-400" title="Perdus">P</th>
+                        <th className="px-3 py-2 text-center w-10 hidden md:table-cell" title="Joués">J</th>
+                        <th className="px-3 py-2 text-center w-10 text-green-400 hidden md:table-cell" title="Gagnés">G</th>
+                        <th className="px-3 py-2 text-center w-10 text-red-400 hidden md:table-cell" title="Perdus">P</th>
                         <th className="px-3 py-2 text-center w-14 text-white font-bold" title="Points">Pts</th>
                     </tr>
                 </thead>
@@ -120,9 +120,9 @@ export function LeagueStandingsTable({ teams, matches }: LeagueStandingsTablePro
                                         </span>
                                     </div>
                                 </td>
-                                <td className="px-3 py-2 text-center text-gray-400 font-mono">{team.played}</td>
-                                <td className="px-3 py-2 text-center text-green-400/80 font-mono">{team.wins}</td>
-                                <td className="px-3 py-2 text-center text-red-400/80 font-mono">{team.losses}</td>
+                                <td className="px-3 py-2 text-center text-gray-400 font-mono hidden md:table-cell">{team.played}</td>
+                                <td className="px-3 py-2 text-center text-green-400/80 font-mono hidden md:table-cell">{team.wins}</td>
+                                <td className="px-3 py-2 text-center text-red-400/80 font-mono hidden md:table-cell">{team.losses}</td>
                                 <td className="px-3 py-2 text-center">
                                     <span className={`font-bold font-mono ${index === 0 ? 'text-yellow-400' : 'text-white'}`}>
                                         {team.points}

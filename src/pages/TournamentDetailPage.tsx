@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef, useLayoutEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuthContext } from '../lib/AuthContext'
 import { getTournamentWithMatches, updateTournament, deleteTournament, removeParticipant, updateParticipantBonus } from '../services/tournaments'
@@ -127,6 +127,54 @@ export function TournamentDetailPage() {
 
   // State for selected round (League view)
   const [selectedRound, setSelectedRound] = useState<number>(1)
+  // State for mobile tabs (matches vs standings vs infos)
+  const [mobileTab, setMobileTab] = useState<'matches' | 'standings' | 'infos'>('matches')
+  const tabsRef = useRef<HTMLDivElement>(null)
+
+  // Ref for the round selector container
+  const roundsScrollRef = useRef<HTMLDivElement>(null)
+
+
+
+  // Auto-center selected round (Legacy for desktop/if needed, though we are moving to dropdown on mobile)
+  useEffect(() => {
+    if (roundsScrollRef.current) {
+      const container = roundsScrollRef.current
+      const selectedButton = container.querySelector(`[data-round="${selectedRound}"]`) as HTMLElement
+
+      if (selectedButton) {
+        const containerCenter = container.offsetWidth / 2
+        const buttonCenter = selectedButton.offsetWidth / 2
+        const scrollLeft = selectedButton.offsetLeft - containerCenter + buttonCenter
+
+        container.scrollTo({ left: scrollLeft, behavior: 'smooth' })
+      }
+    }
+  }, [selectedRound])
+
+  // useLayoutEffect runs after DOM updates but before paint
+  // We use a dedicated anchor element to calculate precise scroll position, bypassing sticky/offset complexities
+  const scrollAnchorRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    if (scrollAnchorRef.current) {
+      if (!isBracketFormat) {
+        // Get absolute position of the anchor on the page
+        const anchorRect = scrollAnchorRef.current.getBoundingClientRect()
+        const absoluteAnchorTop = anchorRect.top + window.scrollY
+
+        // Header is ~80px. We want to land just below it.
+        const headerOffset = 85
+        const targetScroll = absoluteAnchorTop - headerOffset
+
+        // Only scroll up if we are currently "below" the tabs (plus a small buffer)
+        // We check if current scroll is significantly deeper than the target
+        if (window.scrollY > targetScroll + 10) {
+          window.scrollTo({ top: targetScroll, behavior: 'auto' })
+        }
+      }
+    }
+  }, [mobileTab, isBracketFormat])
 
   // Initialize selectedRound to the first round with unplayed matches
   useEffect(() => {
@@ -647,7 +695,49 @@ export function TournamentDetailPage() {
         Rules | Invite | Admin/Status
         =======================================================================
       */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Mobile Tabs Navigation (Global) */}
+      {/* Scroll Anchor: Invisible marker to calculate precise scroll position */}
+      <div ref={scrollAnchorRef} className="absolute w-full h-px -mt-px opacity-0 pointer-events-none" />
+      <div
+        ref={tabsRef}
+        className="min-[1320px]:hidden flex p-1 bg-white/5 rounded-lg border border-white/5 mb-6 sticky top-[6.5rem] z-30 backdrop-blur-md transition-all duration-300"
+      >
+        <button
+          onClick={() => setMobileTab('matches')}
+          className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${mobileTab === 'matches'
+            ? 'bg-violet-600 text-white shadow-lg'
+            : 'text-gray-400 hover:text-white'
+            }`}
+        >
+          Matchs
+        </button>
+        <button
+          onClick={() => setMobileTab('standings')}
+          className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${mobileTab === 'standings'
+            ? 'bg-violet-600 text-white shadow-lg'
+            : 'text-gray-400 hover:text-white'
+            }`}
+        >
+          Classements
+        </button>
+        <button
+          onClick={() => setMobileTab('infos')}
+          className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${mobileTab === 'infos'
+            ? 'bg-violet-600 text-white shadow-lg'
+            : 'text-gray-400 hover:text-white'
+            }`}
+        >
+          Infos
+        </button>
+      </div>
+
+      {/* 
+        =======================================================================
+        UNIFIED DASHBOARD BAR (Shared across all formats)
+        Rules | Invite | Admin/Status
+        =======================================================================
+      */}
+      <div className={`grid grid-cols-1 min-[1320px]:grid-cols-2 lg:grid-cols-3 gap-4 ${mobileTab === 'infos' ? 'block' : 'hidden min-[1320px]:grid'}`}>
         {/* Card 1: Règles */}
         <Card className={`flex-1 ${isEditingPoints ? 'border-violet-500/50 bg-violet-500/5' : ''}`}>
           <div className="flex items-center justify-between mb-3">
@@ -858,28 +948,28 @@ export function TournamentDetailPage() {
         /* VUE LIGUE */
         <div className="space-y-6">
           {/* Section 1: Classement Joueurs (Full Width) */}
-          <Card>
-            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-yellow-400" /> Classement des joueurs
-            </h2>
-            <div className="overflow-hidden rounded-lg border border-white/5 bg-black/20">
-              <LeaderboardTable
-                entries={leaderboard}
-                loading={leaderboardLoading}
-                isAdmin={isAdmin}
-                adminId={tournament?.admin_id}
-                onRemoveParticipant={handleRemoveParticipant}
-                onUpdateBonus={handleUpdateBonus}
-              />
-            </div>
-          </Card>
+          <div className={`${mobileTab === 'standings' ? 'block' : 'hidden min-[1320px]:block'}`}>
+            <Card>
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-yellow-400" /> Classement des joueurs
+              </h2>
+              <div className="overflow-hidden rounded-lg border border-white/5 bg-black/20">
+                <LeaderboardTable
+                  entries={leaderboard}
+                  loading={leaderboardLoading}
+                  isAdmin={isAdmin}
+                  adminId={tournament?.admin_id}
+                  onRemoveParticipant={handleRemoveParticipant}
+                  onUpdateBonus={handleUpdateBonus}
+                />
+              </div>
+            </Card>
+          </div>
 
-          {/* Section 2: Classement Équipes (Full Width) */}
-          {/* Section 3: Matchs (Full Width in Card) */}
           {/* Grid Layout: Team Standings (Left) & Matches (Right) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Colonne Gauche: Classement Équipes */}
-            <div className="space-y-6">
+            <div className={`space-y-6 ${mobileTab === 'standings' ? 'block' : 'hidden min-[1320px]:block'}`}>
               <Card>
                 <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                   <Users className="w-5 h-5 text-gray-400" /> Classement des équipes
@@ -889,7 +979,7 @@ export function TournamentDetailPage() {
             </div>
 
             {/* Colonne Droite: Matchs */}
-            <div className="lg:col-span-2">
+            <div className={`lg:col-span-2 ${mobileTab === 'matches' ? 'block' : 'hidden min-[1320px]:block'}`}>
               <Card>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -912,7 +1002,45 @@ export function TournamentDetailPage() {
                 ) : (
                   <div className="space-y-6">
                     {/* Round Selector */}
-                    <div className="flex items-center justify-between bg-black/20 rounded-lg p-2 border border-white/5">
+
+
+                    {/* 
+                        ROUND SELECTOR (Refactored for Mobile) 
+                        - Desktop: Keep scroll view (if large enough) but we can use the same logic or hide this on desktop if table handles it.
+                        - Mobile: Prev | Toggle Dropdown | Next
+                      */}
+                    {/* Round Selector (Simplified: Arrows Only) */}
+                    {/* Round Selector (Simplified: Mobile Only) */}
+                    <div className="relative z-30 min-[1320px]:hidden">
+                      <div className="flex items-center justify-between bg-black/20 rounded-lg p-2 border border-white/5">
+                        <button
+                          onClick={() => setSelectedRound(prev => Math.max(1, prev - 1))}
+                          disabled={selectedRound <= 1}
+                          className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                        >
+                          <ChevronLeft className="w-5 h-5 text-gray-400" />
+                        </button>
+
+                        {/* Center Display (Styled) */}
+                        <div className="flex-1 flex items-center justify-center -mx-2">
+                          <span className="px-6 py-1.5 rounded-md bg-violet-600 text-white text-sm font-medium shadow-lg">
+                            Journée {selectedRound}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={() => setSelectedRound(prev => Math.min(maxRound, prev + 1))}
+                          disabled={selectedRound >= maxRound}
+                          className="p-2 hover:bg-white/10 rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                        >
+                          <ChevronRight className="w-5 h-5 text-gray-400" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Round Selector (Scrollable: Desktop Only) */}
+                    {/* Round Selector (Scrollable: Desktop Only) */}
+                    <div className="hidden min-[1320px]:flex relative z-30 items-center justify-between gap-4 max-w-2xl mx-auto">
                       <button
                         onClick={() => setSelectedRound(prev => Math.max(1, prev - 1))}
                         disabled={selectedRound <= 1}
@@ -921,20 +1049,24 @@ export function TournamentDetailPage() {
                         <ChevronLeft className="w-5 h-5 text-gray-400" />
                       </button>
 
-                      <div className="flex gap-2 overflow-x-auto px-2 max-w-[200px] sm:max-w-md md:max-w-xl scrollbar-hide">
-                        {rounds.map(round => (
+                      <div
+                        ref={roundsScrollRef}
+                        className="flex overflow-x-auto gap-2 px-2 py-1 md:max-w-xl snap-x snap-mandatory scrollbar-hide mask-fade-sides"
+                      >
+                        {Array.from({ length: maxRound }, (_, i) => i + 1).map((r) => (
                           <button
-                            key={round}
-                            onClick={() => setSelectedRound(round)}
+                            key={r}
+                            data-round={r}
+                            onClick={() => setSelectedRound(r)}
                             className={`
-                              px-4 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-all
-                              ${selectedRound === round
+                               snap-center flex-shrink-0 px-4 py-1.5 rounded-md font-medium text-sm transition-all duration-200 whitespace-nowrap
+                               ${selectedRound === r
                                 ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/20'
                                 : 'text-gray-400 hover:text-white hover:bg-white/5'
                               }
-                            `}
+                             `}
                           >
-                            Journée {round}
+                            Journée {r}
                           </button>
                         ))}
                       </div>

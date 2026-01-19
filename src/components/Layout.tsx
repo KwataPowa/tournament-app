@@ -103,7 +103,7 @@ export function Layout() {
           }
         `}
       >
-        <div className="max-w-[1600px] mx-auto px-4 lg:px-8 h-full flex items-center justify-between">
+        <div className="max-w-[1600px] mx-auto px-4 lg:px-8 h-full flex items-center justify-between gap-4">
 
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
@@ -120,8 +120,8 @@ export function Layout() {
             </div>
           </Link>
 
-          {/* Center Navigation - Desktop */}
-          <nav className="hidden md:flex items-center gap-1 absolute left-1/2 transform -translate-x-1/2 p-1.5 rounded-full bg-white/5 border border-white/5 backdrop-blur-sm shadow-xl shadow-black/10">
+          {/* Center Navigation - Desktop (lg and up to prevent overlap) */}
+          <nav className="hidden lg:flex items-center gap-1 p-1.5 rounded-full bg-white/5 border border-white/5 backdrop-blur-sm shadow-xl shadow-black/10">
             {NAV_ITEMS.map((item) => {
               const active = isActive(item.path)
               return (
@@ -202,7 +202,7 @@ export function Layout() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full pt-28 px-4 md:px-8 lg:px-10 pb-10 relative z-10 flex flex-col items-center">
+      <main className="flex-1 w-full pt-28 px-4 md:px-8 lg:px-10 pb-24 md:pb-10 relative z-10 flex flex-col items-center">
         <div className="w-full max-w-[1400px] animate-fade-scale">
           <Outlet />
         </div>
@@ -212,8 +212,8 @@ export function Layout() {
       <CookieConsent />
 
       {/* Mobile Navigation (Bottom Bar) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0f0a1e]/90 backdrop-blur-xl border-t border-white/10 pb-6">
-        <div className="flex items-center justify-around p-2">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0f0a1e]/95 backdrop-blur-xl border-t border-white/10 pb-safe">
+        <div className="flex items-center justify-around px-2 h-16">
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.path)
             return (
@@ -221,19 +221,18 @@ export function Layout() {
                 key={item.path}
                 to={item.path}
                 className={`
-                   flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-300 w-16
-                   ${active
-                    ? 'text-violet-400'
-                    : 'text-gray-500 hover:text-gray-300'
-                  }
+                   relative flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-300
+                   ${active ? 'text-violet-400 w-20' : 'text-gray-500 hover:text-gray-300 w-12'}
                  `}
               >
-                <span className={`transition-transform duration-300 ${active ? '-translate-y-1' : ''}`}>
+                {active && (
+                  <span className="absolute -top-[17px] w-8 h-1 rounded-b-full bg-violet-500 shadow-[0_2px_8px_rgba(139,92,246,0.6)]" />
+                )}
+                <span className={`transition-transform duration-300 ${active ? 'scale-110' : ''}`}>
                   {item.icon}
                 </span>
-                <span className="text-[10px] font-medium">{item.label}</span>
                 {active && (
-                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.8)]" />
+                  <span className="text-[10px] font-medium animate-fade-in whitespace-nowrap">{item.label}</span>
                 )}
               </Link>
             )
@@ -242,17 +241,19 @@ export function Layout() {
           <Link
             to="/tournaments/new"
             className={`
-               flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-300 w-16
-               ${isActive('/tournaments/new')
-                ? 'text-cyan-400'
-                : 'text-gray-500 hover:text-gray-300'
-              }
+               relative flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-300
+               ${isActive('/tournaments/new') ? 'text-cyan-400 w-20' : 'text-gray-500 hover:text-gray-300 w-12'}
              `}
           >
-            <span className={`transition-transform duration-300 ${isActive('/tournaments/new') ? '-translate-y-1' : ''}`}>
+            {isActive('/tournaments/new') && (
+              <span className="absolute -top-[17px] w-8 h-1 rounded-b-full bg-cyan-500 shadow-[0_2px_8px_rgba(34,211,238,0.6)]" />
+            )}
+            <span className={`transition-transform duration-300 ${isActive('/tournaments/new') ? 'scale-110' : ''}`}>
               <Plus className="w-6 h-6" />
             </span>
-            <span className="text-[10px] font-medium">Créer</span>
+            {isActive('/tournaments/new') && (
+              <span className="text-[10px] font-medium animate-fade-in">Créer</span>
+            )}
           </Link>
         </div>
       </nav>
