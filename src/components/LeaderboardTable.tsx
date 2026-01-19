@@ -255,27 +255,26 @@ export function LeaderboardTable({
                     </div>
                   </div>
                 </td>
+
                 <td className="px-4 py-3.5 whitespace-nowrap text-right">
-                  <div className="flex flex-col items-end gap-1">
-                    <div className="flex items-center justify-end gap-2">
-                      <span className={`
-                      font-mono font-bold text-xl
-                      ${entry.rank === 1 ? 'text-yellow-400 text-glow-gold' :
-                          entry.rank === 2 ? 'text-gray-300' :
-                            entry.rank === 3 ? 'text-amber-500' :
-                              entry.isCurrentUser ? 'text-violet-400' :
-                                'text-white'
-                        }
-                    `}>
-                        {entry.total_points}
-                      </span>
-                      <span className="text-xs text-gray-500 font-medium">pts</span>
-                    </div>
+                  <div className="flex items-center justify-end gap-2">
                     {entry.bonus_points !== 0 && (
-                      <span className="text-xs text-green-400 font-mono" title="Points bonus admin">
+                      <span className="text-xs text-green-400 font-mono mr-1" title="Points bonus admin">
                         ({entry.bonus_points > 0 ? '+' : ''}{entry.bonus_points})
                       </span>
                     )}
+                    <span className={`
+                      font-mono font-bold text-xl
+                      ${entry.rank === 1 ? 'text-yellow-400 text-glow-gold' :
+                        entry.rank === 2 ? 'text-gray-300' :
+                          entry.rank === 3 ? 'text-amber-500' :
+                            entry.isCurrentUser ? 'text-violet-400' :
+                              'text-white'
+                      }
+                    `}>
+                      {entry.total_points}
+                    </span>
+                    <span className="text-xs text-gray-500 font-medium">pts</span>
                   </div>
                 </td>
                 {(isAdmin && (onRemoveParticipant || onUpdateBonus)) && (
