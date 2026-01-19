@@ -663,7 +663,7 @@ export function TournamentDetailPage() {
               <h1 className="text-3xl font-bold text-white text-glow">
                 {tournament.name}
               </h1>
-              <span className={`px-3 py-1 text-xs font-medium rounded-full border ${statusColors[tournament.status]}`}>
+              <span className={`px-3 py-1 text-xs font-medium rounded-full border whitespace-nowrap ${statusColors[tournament.status]}`}>
                 {statusLabels[tournament.status]}
               </span>
             </div>
@@ -850,7 +850,7 @@ export function TournamentDetailPage() {
                   </span>
                 )}
                 {tournament.status === 'active' && (
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-2 whitespace-nowrap">
                     <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                     En cours ({playedMatches}/{currentMatches})
                   </span>

@@ -136,7 +136,7 @@ export function LeagueMatchRow({
                         </span>
                     </div>
                     {isStarted && !hasResult && (
-                        <span className="text-[10px] uppercase font-bold text-red-400 animate-pulse">En cours</span>
+                        <span className="text-[10px] uppercase font-bold text-red-400 animate-pulse whitespace-nowrap">En cours</span>
                     )}
                     {hasResult && <span className="text-[10px] uppercase font-bold text-green-400">Terminé</span>}
                 </div>
