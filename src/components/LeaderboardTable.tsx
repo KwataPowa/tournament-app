@@ -159,7 +159,7 @@ export function LeaderboardTable({
       {entries.length >= 3 && (
         <div className="hidden md:flex justify-center items-end gap-4 py-6 px-4 bg-gradient-to-b from-white/5 to-transparent border-b border-white/5">
           {/* Second place */}
-          <div className="flex flex-col items-center animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <div className="flex flex-col items-center" style={{ animationDelay: '0.1s' }}>
             <div className="relative">
               {getAvatarDisplay(entries[1])}
               <div className="absolute -bottom-2 -right-2 bg-gray-800 rounded-full p-0.5 border border-gray-700">
@@ -173,7 +173,7 @@ export function LeaderboardTable({
           </div>
 
           {/* First place */}
-          <div className="flex flex-col items-center -mt-4 animate-slide-up" style={{ animationDelay: '0s' }}>
+          <div className="flex flex-col items-center -mt-4" style={{ animationDelay: '0s' }}>
             <div className="relative">
               <div className="absolute -inset-3 bg-yellow-500/20 rounded-full blur-xl animate-pulse-glow" />
               <div className="relative">
@@ -192,7 +192,7 @@ export function LeaderboardTable({
           </div>
 
           {/* Third place */}
-          <div className="flex flex-col items-center animate-slide-up" style={{ animationDelay: '0.2s' }}>
+          <div className="flex flex-col items-center" style={{ animationDelay: '0.2s' }}>
             <div className="relative">
               {getAvatarDisplay(entries[2])}
               <div className="absolute -bottom-2 -right-2 bg-gray-800 rounded-full p-0.5 border border-amber-900">
@@ -228,7 +228,7 @@ export function LeaderboardTable({
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5" data-stagger>
+          <tbody className="divide-y divide-white/5">
             {entries.map((entry, index) => (
               <tr
                 key={entry.user_id}

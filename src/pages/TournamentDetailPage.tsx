@@ -645,7 +645,7 @@ export function TournamentDetailPage() {
   const playedMatches = matches.filter((m) => m.result !== null).length
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 overflow-hidden">
       {/* HEADER */}
       <div className="flex items-center gap-2 mb-4">
         <Link to="/tournaments" className="text-gray-400 hover:text-white transition-colors">
@@ -946,10 +946,10 @@ export function TournamentDetailPage() {
         </div>
       ) : (
         /* VUE LIGUE */
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-hidden">
           {/* Section 1: Classement Joueurs (Full Width) */}
-          <div className={`${mobileTab === 'standings' ? 'block' : 'hidden min-[1320px]:block'}`}>
-            <Card>
+          <div className={`overflow-hidden ${mobileTab === 'standings' ? 'block' : 'hidden min-[1320px]:block'}`}>
+            <Card className="overflow-hidden">
               <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-yellow-400" /> Classement des joueurs
               </h2>
@@ -969,7 +969,7 @@ export function TournamentDetailPage() {
           {/* Grid Layout: Team Standings (Left) & Matches (Right) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Colonne Gauche: Classement Équipes */}
-            <div className={`space-y-6 ${mobileTab === 'standings' ? 'block' : 'hidden min-[1320px]:block'}`}>
+            <div className={`space-y-6 overflow-x-hidden ${mobileTab === 'standings' ? 'block' : 'hidden min-[1320px]:block'}`}>
               <Card>
                 <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                   <Users className="w-5 h-5 text-gray-400" /> Classement des équipes
