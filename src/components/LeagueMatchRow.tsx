@@ -212,7 +212,19 @@ export function LeagueMatchRow({
                                 : 'bg-red-500/10 text-red-400 border-red-500/20'
                             : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
                             }`}>
-                            <span>{prediction.predicted_winner} ({prediction.predicted_score})</span>
+                            <div className="flex items-center gap-1.5">
+                                {getTeamLogo(prediction.predicted_winner) ? (
+                                    <img
+                                        src={getTeamLogo(prediction.predicted_winner)}
+                                        alt={prediction.predicted_winner}
+                                        className="w-4 h-4 object-contain"
+                                        title={prediction.predicted_winner}
+                                    />
+                                ) : (
+                                    <span>{prediction.predicted_winner}</span>
+                                )}
+                                <span>({prediction.predicted_score})</span>
+                            </div>
                             {hasResult && (
                                 <>
                                     <span className="mx-1">➜</span>
