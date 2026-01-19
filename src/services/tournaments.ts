@@ -190,3 +190,22 @@ export async function removeParticipant(tournamentId: string, userId: string): P
     throw new Error(error.message)
   }
 }
+
+/**
+ * Mettre à jour les points bonus d'un participant
+ */
+export async function updateParticipantBonus(
+    tournamentId: string,
+    userId: string,
+    bonusPoints: number
+): Promise<void> {
+    const { error } = await supabase
+        .from('participants')
+        .update({ bonus_points: bonusPoints })
+        .eq('tournament_id', tournamentId)
+        .eq('user_id', userId)
+
+    if (error) {
+        throw new Error(error.message)
+    }
+}

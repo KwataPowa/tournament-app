@@ -5,6 +5,7 @@ export type LeaderboardEntry = Participant & {
   username: string
   avatar_url: string | null
   isCurrentUser: boolean
+  bonus_points: number
 }
 
 /**
@@ -59,6 +60,7 @@ export async function getLeaderboard(
       username: profile?.username ?? `Joueur ${participant.user_id.slice(0, 8)}`,
       avatar_url: profile?.avatar_url ?? null,
       isCurrentUser,
+      bonus_points: participant.bonus_points
     }
   })
 }

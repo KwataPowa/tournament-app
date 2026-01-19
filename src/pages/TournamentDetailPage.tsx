@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuthContext } from '../lib/AuthContext'
-import { getTournamentWithMatches, updateTournament, deleteTournament, removeParticipant } from '../services/tournaments'
+import { getTournamentWithMatches, updateTournament, deleteTournament, removeParticipant, updateParticipantBonus } from '../services/tournaments'
 import { createMatch, updateMatch, deleteMatch, enterMatchResult, updateMatchResultRecursive, recalculateTournamentPoints } from '../services/matches'
 import { getUserPredictionsForTournament, createOrUpdatePrediction } from '../services/predictions'
 import { getLeaderboard, type LeaderboardEntry } from '../services/leaderboard'
@@ -444,6 +444,13 @@ export function TournamentDetailPage() {
     loadLeaderboard()
   }
 
+  // Mettre à jour les points bonus (admin only)
+  const handleUpdateBonus = async (userId: string, bonus: number) => {
+    if (!tournament || !isAdmin) return
+    await updateParticipantBonus(tournament.id, userId, bonus)
+    await loadLeaderboard()
+  }
+
   const handleSavePrediction = async (data: {
     predicted_winner: string
     predicted_score: string
@@ -632,7 +639,7 @@ export function TournamentDetailPage() {
                   setPointsForm(tournament.scoring_rules)
                   setIsEditingPoints(true)
                 }}
-                className="text-gray-500 hover:text-white transition-colors"
+                className="text-blue-400 hover:text-blue-300 transition-colors p-1"
                 title="Modifier les points"
               >
                 <Edit2 className="w-3.5 h-3.5" />
@@ -804,6 +811,7 @@ export function TournamentDetailPage() {
                 isAdmin={isAdmin}
                 adminId={tournament?.admin_id}
                 onRemoveParticipant={handleRemoveParticipant}
+                onUpdateBonus={handleUpdateBonus}
               />
             </div>
           </Card>
@@ -840,6 +848,7 @@ export function TournamentDetailPage() {
                 isAdmin={isAdmin}
                 adminId={tournament?.admin_id}
                 onRemoveParticipant={handleRemoveParticipant}
+                onUpdateBonus={handleUpdateBonus}
               />
             </div>
           </Card>

@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import type { LeaderboardEntry } from '../services/leaderboard'
-import { Trophy, Medal, Trash2, Loader2 } from 'lucide-react'
+import { Trophy, Medal, Trash2, Loader2, Edit2 } from 'lucide-react'
 import { AvatarDisplay } from './AvatarDisplay'
+import { Card } from './ui/Card'
+import { Button } from './ui/Button'
 
 type LeaderboardTableProps = {
   entries: LeaderboardEntry[]
@@ -12,6 +14,8 @@ type LeaderboardTableProps = {
   adminId?: string
   /** Callback pour exclure un participant */
   onRemoveParticipant?: (userId: string, username: string) => Promise<void>
+  /** Callback pour modifier les points bonus */
+  onUpdateBonus?: (userId: string, currentBonus: number) => Promise<void>
 }
 
 export function LeaderboardTable({
@@ -20,8 +24,33 @@ export function LeaderboardTable({
   isAdmin = false,
   adminId,
   onRemoveParticipant,
+  onUpdateBonus,
 }: LeaderboardTableProps) {
   const [removingUserId, setRemovingUserId] = useState<string | null>(null)
+
+  // Bonus editing state
+  const [editingBonusUser, setEditingBonusUser] = useState<string | null>(null)
+  const [bonusValue, setBonusValue] = useState<number>(0)
+  const [bonusLoading, setBonusLoading] = useState(false)
+
+  const handleEditBonus = (entry: LeaderboardEntry) => {
+    setEditingBonusUser(entry.user_id)
+    setBonusValue(entry.bonus_points || 0)
+  }
+
+  const handleSaveBonus = async () => {
+    if (!editingBonusUser || !onUpdateBonus) return
+    setBonusLoading(true)
+    try {
+      await onUpdateBonus(editingBonusUser, bonusValue)
+      setEditingBonusUser(null)
+    } catch (err) {
+      console.error(err)
+      alert("Erreur lors de la mise à jour des points bonus")
+    } finally {
+      setBonusLoading(false)
+    }
+  }
 
   const handleRemove = async (userId: string, username: string) => {
     if (!onRemoveParticipant) return
@@ -192,7 +221,7 @@ export function LeaderboardTable({
               <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">
                 Points
               </th>
-              {isAdmin && onRemoveParticipant && (
+              {(isAdmin && (onRemoveParticipant || onUpdateBonus)) && (
                 <th className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider w-20">
                   Actions
                 </th>
@@ -227,39 +256,60 @@ export function LeaderboardTable({
                   </div>
                 </td>
                 <td className="px-4 py-3.5 whitespace-nowrap text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <span className={`
+                  <div className="flex flex-col items-end gap-1">
+                    <div className="flex items-center justify-end gap-2">
+                      <span className={`
                       font-mono font-bold text-xl
                       ${entry.rank === 1 ? 'text-yellow-400 text-glow-gold' :
-                        entry.rank === 2 ? 'text-gray-300' :
-                          entry.rank === 3 ? 'text-amber-500' :
-                            entry.isCurrentUser ? 'text-violet-400' :
-                              'text-white'
-                      }
+                          entry.rank === 2 ? 'text-gray-300' :
+                            entry.rank === 3 ? 'text-amber-500' :
+                              entry.isCurrentUser ? 'text-violet-400' :
+                                'text-white'
+                        }
                     `}>
-                      {entry.total_points}
-                    </span>
-                    <span className="text-xs text-gray-500 font-medium">pts</span>
+                        {entry.total_points}
+                      </span>
+                      <span className="text-xs text-gray-500 font-medium">pts</span>
+                    </div>
+                    {entry.bonus_points !== 0 && (
+                      <span className="text-xs text-green-400 font-mono" title="Points bonus admin">
+                        ({entry.bonus_points > 0 ? '+' : ''}{entry.bonus_points})
+                      </span>
+                    )}
                   </div>
                 </td>
-                {isAdmin && onRemoveParticipant && (
+                {(isAdmin && (onRemoveParticipant || onUpdateBonus)) && (
                   <td className="px-4 py-3.5 whitespace-nowrap text-center">
-                    {entry.user_id !== adminId ? (
-                      <button
-                        onClick={() => handleRemove(entry.user_id, entry.username)}
-                        disabled={removingUserId === entry.user_id}
-                        className="p-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={`Exclure ${entry.username}`}
-                      >
-                        {removingUserId === entry.user_id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                    <div className="flex items-center justify-center gap-2">
+                      {onUpdateBonus && (
+                        <button
+                          onClick={() => handleEditBonus(entry)}
+                          className="p-2 rounded-lg text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-all"
+                          title="Modifier bonus points"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {onRemoveParticipant && (
+                        entry.user_id !== adminId ? (
+                          <button
+                            onClick={() => handleRemove(entry.user_id, entry.username)}
+                            disabled={removingUserId === entry.user_id}
+                            className="p-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            title={`Exclure ${entry.username}`}
+                          >
+                            {removingUserId === entry.user_id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
                         ) : (
-                          <Trash2 className="w-4 h-4" />
-                        )}
-                      </button>
-                    ) : (
-                      <span className="text-xs text-gray-600 italic">Admin</span>
-                    )}
+                          <div className="w-8 h-8" />
+                        )
+                      )}
+                    </div>
                   </td>
                 )}
               </tr>
@@ -267,6 +317,65 @@ export function LeaderboardTable({
           </tbody>
         </table>
       </div>
+
+      {/* Bonus Edit Modal */}
+      {editingBonusUser && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="max-w-md w-full p-6 border-violet-500/30">
+            <h3 className="text-xl font-bold text-white mb-4">Modifier les points bonus</h3>
+            <p className="text-sm text-gray-400 mb-6">
+              Ajoutez ou retirez des points manuellement à ce joueur. Ces points s'ajoutent au total calculé automatiquement.
+            </p>
+
+            <div className="flex items-center justify-center gap-4 mb-8">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setBonusValue(prev => prev - 1)}
+              >
+                -1
+              </Button>
+
+              <div className="flex flex-col items-center">
+                <input
+                  type="number"
+                  value={bonusValue}
+                  onChange={(e) => setBonusValue(parseInt(e.target.value) || 0)}
+                  className="w-20 bg-black/50 border border-white/10 rounded-lg py-2 px-3 text-center text-2xl font-bold text-white focus:border-violet-500 focus:outline-none"
+                />
+                <span className="text-xs text-gray-500 mt-1">points bonus</span>
+              </div>
+
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setBonusValue(prev => prev + 1)}
+              >
+                +1
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                className="flex-1"
+                onClick={() => setEditingBonusUser(null)}
+              >
+                Annuler
+              </Button>
+              <Button
+                variant="primary"
+                className="flex-1"
+                onClick={handleSaveBonus}
+                disabled={bonusLoading}
+              >
+                {bonusLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Sauvegarder
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

@@ -190,6 +190,7 @@ export type Database = {
           total_points: number
           rank: number | null
           joined_at: string
+          bonus_points: number
         }
         Insert: {
           tournament_id: string
@@ -197,6 +198,7 @@ export type Database = {
           total_points?: number
           rank?: number | null
           joined_at?: string
+          bonus_points?: number
         }
         Update: {
           tournament_id?: string
@@ -204,6 +206,7 @@ export type Database = {
           total_points?: number
           rank?: number | null
           joined_at?: string
+          bonus_points?: number
         }
       }
       profiles: {
