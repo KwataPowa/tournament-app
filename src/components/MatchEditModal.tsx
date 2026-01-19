@@ -7,7 +7,7 @@ import { Trophy } from 'lucide-react'
 
 type MatchEditModalProps = {
   match: Match | null // null = création
-  teams: string[]
+  teams: { name: string; logo?: string }[]
   maxRound: number
   defaultRound?: number
   existingMatches: Match[]
@@ -64,6 +64,115 @@ function getPossibleScores(format: MatchFormat, winner: 'team_a' | 'team_b'): st
   return scores
 }
 
+// Custom Select Component for Teams with Logos
+function TeamSelect({
+  value,
+  onChange,
+  teams,
+  placeholder = "Sélectionner..."
+}: {
+  value: string
+  onChange: (value: string) => void
+  teams: { name: string; logo?: string }[]
+  placeholder?: string
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  // Close on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (!target.closest('.team-select-container')) {
+        setIsOpen(false)
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
+
+  const selectedTeam = teams.find(t => t.name === value)
+
+  return (
+    <div className="relative team-select-container">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-left flex items-center justify-between transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 hover:bg-white/10"
+      >
+        <div className="flex items-center gap-2 overflow-hidden">
+          {selectedTeam ? (
+            <>
+              {selectedTeam.logo && (
+                <img
+                  src={selectedTeam.logo}
+                  alt={selectedTeam.name}
+                  className="w-5 h-5 object-contain flex-shrink-0"
+                />
+              )}
+              <span className="text-white truncate">{selectedTeam.name}</span>
+            </>
+          ) : (
+            <span className="text-gray-400 truncate">{value || placeholder}</span>
+          )}
+        </div>
+        <div className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-[#1a1625] border border-white/10 rounded-xl shadow-xl max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
+          <div className="p-1">
+            <button
+              type="button"
+              onClick={() => {
+                onChange('')
+                setIsOpen(false)
+              }}
+              className={`w-full px-3 py-2 rounded-lg flex items-center gap-2 transition-colors ${value === '' ? 'bg-violet-500/20 text-violet-300' : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                }`}
+            >
+              {placeholder}
+            </button>
+            {teams.map((team) => (
+              <button
+                key={team.name}
+                type="button"
+                onClick={() => {
+                  onChange(team.name)
+                  setIsOpen(false)
+                }}
+                className={`w-full px-3 py-2 rounded-lg flex items-center gap-3 transition-colors ${value === team.name ? 'bg-violet-500/20 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                  }`}
+              >
+                {team.logo ? (
+                  <img src={team.logo} alt={team.name} className="w-6 h-6 object-contain" />
+                ) : (
+                  <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center text-[10px] font-bold">
+                    {team.name.charAt(0)}
+                  </div>
+                )}
+                <span className="truncate">{team.name}</span>
+                {value === team.name && (
+                  <span className="ml-auto text-violet-400">✓</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function MatchEditModal({
   match,
   teams,
@@ -110,6 +219,9 @@ export function MatchEditModal({
 
   // Scores possibles basés sur le format et le vainqueur
   const possibleScores = resultWinner ? getPossibleScores(matchFormat, resultWinner) : []
+
+  // Helpers to get logos
+  const getLogo = (name: string) => teams.find(t => t.name === name)?.logo
 
   useEffect(() => {
     if (match) {
@@ -287,8 +399,8 @@ export function MatchEditModal({
   }
 
   // Filter available teams for each dropdown
-  const availableTeamsA = teams.filter(t => t !== teamB)
-  const availableTeamsB = teams.filter(t => t !== teamA)
+  const availableTeamsA = teams.filter(t => t.name !== teamB)
+  const availableTeamsB = teams.filter(t => t.name !== teamA)
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 modal-backdrop modal-backdrop-enter">
@@ -323,9 +435,15 @@ export function MatchEditModal({
           {isEdit && isBracket ? (
             /* Mode Édition: Affichage simple des équipes VS */
             <div className="flex items-center justify-center gap-4 py-4 bg-white/5 rounded-xl border border-white/10">
-              <span className="font-bold text-xl text-white">{teamA}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-xl text-white">{teamA}</span>
+                {getLogo(teamA) && <img src={getLogo(teamA)} alt={teamA} className="w-6 h-6 object-contain" />}
+              </div>
               <span className="text-violet-400 font-bold text-lg">VS</span>
-              <span className="font-bold text-xl text-white">{teamB}</span>
+              <div className="flex items-center gap-2">
+                {getLogo(teamB) && <img src={getLogo(teamB)} alt={teamB} className="w-6 h-6 object-contain" />}
+                <span className="font-bold text-xl text-white">{teamB}</span>
+              </div>
             </div>
           ) : (
             /* Mode Création: Sélection des équipes */
@@ -338,27 +456,11 @@ export function MatchEditModal({
                     Équipe A
                   </label>
                   {canEditTeams && (teamA === 'TBD' || teamA === '') ? (
-                    <div className="relative">
-                      <select
-                        value={teamA === 'TBD' ? '' : teamA}
-                        onChange={(e) => setTeamA(e.target.value || 'TBD')}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 hover:bg-white/10"
-                      >
-                        <option value="" className="bg-[#1a1625] text-gray-400">Sélectionner...</option>
-                        {availableTeamsForSlotA
-                          .filter(t => t.name !== teamB) // Exclude team already selected for slot B
-                          .map((team) => (
-                            <option key={team.name} value={team.name} className="bg-[#1a1625] text-white">
-                              {team.name}
-                            </option>
-                          ))}
-                      </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
-                    </div>
+                    <TeamSelect
+                      value={teamA === 'TBD' ? '' : teamA}
+                      onChange={(val) => setTeamA(val || 'TBD')}
+                      teams={availableTeamsForSlotA.filter(t => t.name !== teamB)}
+                    />
                   ) : (
                     <div className={`px-4 py-3 rounded-xl border ${teamA === 'TBD' || teamA === ''
                       ? 'bg-white/5 border-white/10 text-gray-500 italic'
@@ -380,27 +482,11 @@ export function MatchEditModal({
                     Équipe B
                   </label>
                   {canEditTeams && (teamB === 'TBD' || teamB === '') ? (
-                    <div className="relative">
-                      <select
-                        value={teamB === 'TBD' ? '' : teamB}
-                        onChange={(e) => setTeamB(e.target.value || 'TBD')}
-                        className="w-full px-4 py-3 bg-white/5 border-white/10 rounded-xl text-white appearance-none cursor-pointer transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 hover:bg-white/10"
-                      >
-                        <option value="" className="bg-[#1a1625] text-gray-400">Sélectionner...</option>
-                        {availableTeamsForSlotB
-                          .filter(t => t.name !== teamA) // Exclude team already selected for slot A
-                          .map((team) => (
-                            <option key={team.name} value={team.name} className="bg-[#1a1625] text-white">
-                              {team.name}
-                            </option>
-                          ))}
-                      </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
-                    </div>
+                    <TeamSelect
+                      value={teamB === 'TBD' ? '' : teamB}
+                      onChange={(val) => setTeamB(val || 'TBD')}
+                      teams={availableTeamsForSlotB.filter(t => t.name !== teamA)}
+                    />
                   ) : (
                     <div className={`px-4 py-3 rounded-xl border ${teamB === 'TBD' || teamB === ''
                       ? 'bg-white/5 border-white/10 text-gray-500 italic'
@@ -419,25 +505,11 @@ export function MatchEditModal({
                     Équipe A
                   </label>
                   {teams.length > 0 ? (
-                    <div className="relative">
-                      <select
-                        value={teamA}
-                        onChange={(e) => setTeamA(e.target.value)}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 hover:bg-white/10"
-                      >
-                        <option value="" className="bg-[#1a1625] text-gray-400">Sélectionner...</option>
-                        {availableTeamsA.map((team) => (
-                          <option key={team} value={team} className="bg-[#1a1625] text-white">
-                            {team}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
-                    </div>
+                    <TeamSelect
+                      value={teamA}
+                      onChange={setTeamA}
+                      teams={availableTeamsA}
+                    />
                   ) : (
                     <input
                       type="text"
@@ -454,25 +526,11 @@ export function MatchEditModal({
                     Équipe B
                   </label>
                   {teams.length > 0 ? (
-                    <div className="relative">
-                      <select
-                        value={teamB}
-                        onChange={(e) => setTeamB(e.target.value)}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 hover:bg-white/10"
-                      >
-                        <option value="" className="bg-[#1a1625] text-gray-400">Sélectionner...</option>
-                        {availableTeamsB.map((team) => (
-                          <option key={team} value={team} className="bg-[#1a1625] text-white">
-                            {team}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
-                    </div>
+                    <TeamSelect
+                      value={teamB}
+                      onChange={setTeamB}
+                      teams={availableTeamsB}
+                    />
                   ) : (
                     <input
                       type="text"
@@ -491,10 +549,16 @@ export function MatchEditModal({
           {!isBracket && teamA && teamB && (
             <div className="flex items-center justify-center gap-4 py-2 animate-slide-up">
               <div className="flex-1 h-px bg-gradient-to-r from-transparent to-white/10" />
-              <div className="px-4 py-2 bg-white/5 rounded-lg border border-white/10">
-                <span className="font-semibold text-gray-300">{teamA}</span>
-                <span className="mx-3 text-violet-400 font-bold">VS</span>
-                <span className="font-semibold text-gray-300">{teamB}</span>
+              <div className="px-4 py-2 bg-white/5 rounded-lg border border-white/10 flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  {getLogo(teamA) && <img src={getLogo(teamA)} alt={teamA} className="w-5 h-5 object-contain" />}
+                  <span className="font-semibold text-gray-300">{teamA}</span>
+                </div>
+                <span className="text-violet-400 font-bold">VS</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-300">{teamB}</span>
+                  {getLogo(teamB) && <img src={getLogo(teamB)} alt={teamB} className="w-5 h-5 object-contain" />}
+                </div>
               </div>
               <div className="flex-1 h-px bg-gradient-to-l from-transparent to-white/10" />
             </div>
@@ -596,27 +660,41 @@ export function MatchEditModal({
                     type="button"
                     onClick={() => handleWinnerChange('team_a')}
                     className={`
-                      py-3 px-4 rounded-xl font-semibold transition-all duration-200
+                      py-3 px-4 rounded-xl font-semibold transition-all duration-200 flex flex-col items-center justify-center gap-2
                       ${resultWinner === 'team_a'
                         ? 'bg-green-500/20 border-2 border-green-500 text-green-400'
                         : 'bg-white/5 border-2 border-white/10 text-gray-300 hover:border-white/20'
                       }
                     `}
                   >
-                    {teamA}
+                    {getLogo(teamA) ? (
+                      <div className="flex flex-col items-center">
+                        <img src={getLogo(teamA)} alt={teamA} className="w-8 h-8 object-contain mb-1" />
+                        <span>{teamA}</span>
+                      </div>
+                    ) : (
+                      teamA
+                    )}
                   </button>
                   <button
                     type="button"
                     onClick={() => handleWinnerChange('team_b')}
                     className={`
-                      py-3 px-4 rounded-xl font-semibold transition-all duration-200
+                      py-3 px-4 rounded-xl font-semibold transition-all duration-200 flex flex-col items-center justify-center gap-2
                       ${resultWinner === 'team_b'
                         ? 'bg-green-500/20 border-2 border-green-500 text-green-400'
                         : 'bg-white/5 border-2 border-white/10 text-gray-300 hover:border-white/20'
                       }
                     `}
                   >
-                    {teamB}
+                    {getLogo(teamB) ? (
+                      <div className="flex flex-col items-center">
+                        <img src={getLogo(teamB)} alt={teamB} className="w-8 h-8 object-contain mb-1" />
+                        <span>{teamB}</span>
+                      </div>
+                    ) : (
+                      teamB
+                    )}
                   </button>
                 </div>
               </div>

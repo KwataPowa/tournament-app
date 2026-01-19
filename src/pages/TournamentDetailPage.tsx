@@ -94,6 +94,27 @@ export function TournamentDetailPage() {
       }
       grouped[match.round].push(match)
     })
+
+    // Trier les matchs par horaire dans chaque journée
+    Object.keys(grouped).forEach((key) => {
+      const round = Number(key)
+      grouped[round].sort((a, b) => {
+        // Les matchs avec horaire passent en premier
+        if (a.start_time && !b.start_time) return -1
+        if (!a.start_time && b.start_time) return 1
+        if (!a.start_time && !b.start_time) return 0
+
+        // Tri horaire (HH:MM) uniquement, pour éviter les soucis de dates différentes
+        const dateA = new Date(a.start_time!)
+        const dateB = new Date(b.start_time!)
+
+        const timeA = dateA.getHours() * 60 + dateA.getMinutes()
+        const timeB = dateB.getHours() * 60 + dateB.getMinutes()
+
+        return timeA - timeB
+      })
+    })
+
     return grouped
   }, [matches])
 
@@ -1009,7 +1030,7 @@ export function TournamentDetailPage() {
       {isAddingMatch && (
         <MatchEditModal
           match={editingMatch}
-          teams={teams.map(t => t.name)}
+          teams={teams}
           maxRound={maxRound}
           defaultRound={addingToRound}
           existingMatches={matches}
@@ -1043,6 +1064,7 @@ export function TournamentDetailPage() {
           onSave={handleSavePrediction}
           onClose={() => setPredictionMatch(null)}
           roundDate={tournament.round_dates?.[predictionMatch.round.toString()]}
+          teams={teams}
         />
       )}
     </div>

@@ -10,6 +10,7 @@ type PredictionModalProps = {
   onSave: (prediction: { predicted_winner: string; predicted_score: string }) => Promise<void>
   onClose: () => void
   roundDate?: string
+  teams?: { name: string; logo?: string }[]
 }
 
 // Generates possible scores for a given format
@@ -43,6 +44,7 @@ export function PredictionModal({
   onSave,
   onClose,
   roundDate,
+  teams,
 }: PredictionModalProps) {
   const initialWinner = existingPrediction?.predicted_winner === match.team_a
     ? 'team_a'
@@ -63,6 +65,10 @@ export function PredictionModal({
     const newPossibleScores = getPossibleScores(match.match_format, newWinner)
     // Auto-select first score option
     setScore(newPossibleScores[0] || '')
+  }
+
+  const getTeamLogo = (teamName: string) => {
+    return teams?.find(t => t.name === teamName)?.logo
   }
 
   // Check lock status in real-time
@@ -130,10 +136,20 @@ export function PredictionModal({
               <h2 className="text-lg font-semibold text-white">
                 {isEditing ? 'Modifier mon pronostic' : 'Faire un pronostic'}
               </h2>
-              <p className="text-sm text-gray-400">
-                {match.team_a} vs {match.team_b}
+              <div className="text-sm text-gray-400 flex items-center gap-2 mt-1">
+                {getTeamLogo(match.team_a) ? (
+                  <img src={getTeamLogo(match.team_a)} alt={match.team_a} className="w-5 h-5 object-contain" />
+                ) : (
+                  <span>{match.team_a}</span>
+                )}
+                <span className="text-gray-600 font-bold">vs</span>
+                {getTeamLogo(match.team_b) ? (
+                  <img src={getTeamLogo(match.team_b)} alt={match.team_b} className="w-5 h-5 object-contain" />
+                ) : (
+                  <span>{match.team_b}</span>
+                )}
                 <span className="ml-2 px-2 py-0.5 text-xs bg-white/10 rounded-full">{match.match_format}</span>
-              </p>
+              </div>
             </div>
           </div>
         </div>
@@ -150,7 +166,7 @@ export function PredictionModal({
                 type="button"
                 onClick={() => handleWinnerChange('team_a')}
                 className={`
-                  group relative py-4 px-4 rounded-xl font-semibold transition-all duration-300 overflow-hidden
+                  group relative py-4 px-4 rounded-xl font-semibold transition-all duration-300 overflow-hidden flex flex-col items-center justify-center gap-2
                   ${winner === 'team_a'
                     ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border-2 border-emerald-500 text-emerald-400 shadow-lg shadow-emerald-500/20'
                     : 'bg-white/5 border-2 border-white/10 text-gray-300 hover:border-white/20 hover:bg-white/10'
@@ -160,7 +176,17 @@ export function PredictionModal({
                 {winner === 'team_a' && (
                   <div className="absolute inset-0 bg-gradient-to-t from-emerald-500/10 to-transparent" />
                 )}
-                <span className="relative">{match.team_a}</span>
+
+                {getTeamLogo(match.team_a) ? (
+                  <img src={getTeamLogo(match.team_a)} alt={match.team_a} className="w-12 h-12 object-contain" />
+                ) : (
+                  <span className="relative text-lg">{match.team_a}</span>
+                )}
+
+                {getTeamLogo(match.team_a) && (
+                  <span className="relative text-xs opacity-70">{match.team_a}</span>
+                )}
+
                 {winner === 'team_a' && (
                   <span className="absolute top-2 right-2 text-emerald-400 text-sm">✓</span>
                 )}
@@ -169,7 +195,7 @@ export function PredictionModal({
                 type="button"
                 onClick={() => handleWinnerChange('team_b')}
                 className={`
-                  group relative py-4 px-4 rounded-xl font-semibold transition-all duration-300 overflow-hidden
+                  group relative py-4 px-4 rounded-xl font-semibold transition-all duration-300 overflow-hidden flex flex-col items-center justify-center gap-2
                   ${winner === 'team_b'
                     ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border-2 border-emerald-500 text-emerald-400 shadow-lg shadow-emerald-500/20'
                     : 'bg-white/5 border-2 border-white/10 text-gray-300 hover:border-white/20 hover:bg-white/10'
@@ -179,7 +205,17 @@ export function PredictionModal({
                 {winner === 'team_b' && (
                   <div className="absolute inset-0 bg-gradient-to-t from-emerald-500/10 to-transparent" />
                 )}
-                <span className="relative">{match.team_b}</span>
+
+                {getTeamLogo(match.team_b) ? (
+                  <img src={getTeamLogo(match.team_b)} alt={match.team_b} className="w-12 h-12 object-contain" />
+                ) : (
+                  <span className="relative text-lg">{match.team_b}</span>
+                )}
+
+                {getTeamLogo(match.team_b) && (
+                  <span className="relative text-xs opacity-70">{match.team_b}</span>
+                )}
+
                 {winner === 'team_b' && (
                   <span className="absolute top-2 right-2 text-emerald-400 text-sm">✓</span>
                 )}
