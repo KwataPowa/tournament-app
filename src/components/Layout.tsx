@@ -121,7 +121,7 @@ export function Layout() {
           </Link>
 
           {/* Center Navigation - Desktop (lg and up to prevent overlap) */}
-          <nav className="hidden lg:flex items-center gap-1 p-1.5 rounded-full bg-white/5 border border-white/5 backdrop-blur-sm shadow-xl shadow-black/10">
+          <nav className="hidden lg:flex items-center gap-1 p-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/5 shadow-xl shadow-black/10">
             {NAV_ITEMS.map((item) => {
               const active = isActive(item.path)
               return (
@@ -169,19 +169,19 @@ export function Layout() {
               >
                 <div className="relative">
                   <div className={`
-                    w-9 h-9 flex items-center justify-center rounded-full
-                    ${hasProfile ? 'bg-gradient-to-br from-violet-500/20 to-violet-600/10 border border-violet-500/30' : 'bg-white/5 border border-white/10'}
-                    shadow-lg shadow-violet-500/20 group-hover:border-violet-400 group-hover:scale-105 transition-all duration-300 overflow-hidden
-                  `}>
+                     w-9 h-9 flex items-center justify-center rounded-full
+                     ${hasProfile ? 'glass-panel border-primary-500/30 glow-primary' : 'glass-panel'}
+                     group-hover:border-primary-400 group-hover:scale-105 transition-standard overflow-hidden card-interactive
+                   `}>
                     <AvatarDisplay
                       avatar={profile?.avatar_url}
                       className={profile?.avatar_url?.startsWith('http') ? 'w-full h-full' : 'w-5 h-5'}
                     />
                   </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#0f0a1e] rounded-full shadow-lg shadow-emerald-500/50" />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success-500 border-2 border-background rounded-full shadow-lg glow-success" />
                 </div>
                 <div className="hidden lg:flex flex-col">
-                  <span className="text-sm font-semibold text-white group-hover:text-violet-300 transition-colors">
+                  <span className="text-sm font-semibold text-text-primary group-hover:text-primary-300 transition-colors">
                     {hasProfile ? profile?.username : 'Compte'}
                   </span>
                 </div>
@@ -208,12 +208,14 @@ export function Layout() {
         </div>
       </main>
 
+
+
       <Footer />
       <CookieConsent />
 
-      {/* Mobile Navigation (Bottom Bar) */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0f0a1e]/95 backdrop-blur-xl border-t border-white/10 pb-safe">
-        <div className="flex items-center justify-around px-2 h-16">
+      {/* Mobile Navigation (Floating Dock) */}
+      <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pb-safe w-full max-w-[320px]">
+        <div className="glass-panel rounded-full p-2 flex items-center justify-between shadow-2xl shadow-black/50 bg-[#0f0a1e]/80 backdrop-blur-xl border border-white/10 px-6">
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.path)
             return (
@@ -221,19 +223,16 @@ export function Layout() {
                 key={item.path}
                 to={item.path}
                 className={`
-                   relative flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-300
-                   ${active ? 'text-violet-400 w-20' : 'text-gray-500 hover:text-gray-300 w-12'}
-                 `}
+                    relative flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300
+                    ${active ? 'text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}
+                  `}
               >
                 {active && (
-                  <span className="absolute -top-[17px] w-8 h-1 rounded-b-full bg-violet-500 shadow-[0_2px_8px_rgba(139,92,246,0.6)]" />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-violet-600 to-violet-400 rounded-full animate-fade-scale -z-10 shadow-[0_0_20px_rgba(139,92,246,0.5)]" />
                 )}
-                <span className={`transition-transform duration-300 ${active ? 'scale-110' : ''}`}>
+                <div className={`transition-transform duration-300 ${active ? 'scale-110' : ''}`}>
                   {item.icon}
-                </span>
-                {active && (
-                  <span className="text-[10px] font-medium animate-fade-in whitespace-nowrap">{item.label}</span>
-                )}
+                </div>
               </Link>
             )
           })}
@@ -241,22 +240,19 @@ export function Layout() {
           <Link
             to="/tournaments/new"
             className={`
-               relative flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-300
-               ${isActive('/tournaments/new') ? 'text-cyan-400 w-20' : 'text-gray-500 hover:text-gray-300 w-12'}
-             `}
+                relative flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300
+                ${isActive('/tournaments/new') ? 'text-white' : 'text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10'}
+              `}
           >
             {isActive('/tournaments/new') && (
-              <span className="absolute -top-[17px] w-8 h-1 rounded-b-full bg-cyan-500 shadow-[0_2px_8px_rgba(34,211,238,0.6)]" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-cyan-600 to-cyan-400 rounded-full animate-fade-scale -z-10 shadow-[0_0_20px_rgba(34,211,238,0.5)]" />
             )}
-            <span className={`transition-transform duration-300 ${isActive('/tournaments/new') ? 'scale-110' : ''}`}>
+            <div className={`transition-transform duration-300 ${isActive('/tournaments/new') ? 'scale-110' : ''}`}>
               <Plus className="w-6 h-6" />
-            </span>
-            {isActive('/tournaments/new') && (
-              <span className="text-[10px] font-medium animate-fade-in">Créer</span>
-            )}
+            </div>
           </Link>
         </div>
       </nav>
-    </div>
+    </div >
   )
 }

@@ -70,7 +70,7 @@ export function LeaderboardTable({
 
   if (loading) {
     return (
-      <div className="text-center py-12">
+<div className="text-center py-12">
         <div className="inline-flex items-center gap-3">
           <div className="w-5 h-5 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
           <span className="text-gray-400">Chargement du classement...</span>
@@ -81,7 +81,7 @@ export function LeaderboardTable({
 
   if (entries.length === 0) {
     return (
-      <div className="text-center py-12">
+<div className="text-center py-12">
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
           <Trophy className="w-8 h-8 text-white/50" />
         </div>
@@ -166,7 +166,7 @@ export function LeaderboardTable({
                 <Medal className="w-4 h-4 text-gray-300" />
               </div>
             </div>
-            <span className="mt-2 text-sm font-medium text-gray-300 truncate max-w-[80px]">
+<span className="mt-2 text-sm font-medium text-gray-300 truncate max-w-[80px]">
               {entries[1].username}
             </span>
             <span className="text-xs text-gray-500 font-mono">{entries[1].total_points} pts</span>

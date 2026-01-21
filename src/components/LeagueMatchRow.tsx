@@ -111,7 +111,7 @@ export function LeagueMatchRow({
     }
 
     return (
-        <div
+<div
             onClick={handleRowClick}
             className={`
         group relative flex flex-col w-full gap-4 p-4 rounded-lg border

@@ -133,10 +133,16 @@ export function PredictionModal({
       />
 
       {/* Scroll Wrapper */}
-      <div className="fixed inset-0 z-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div
+        className="fixed inset-0 z-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        onClick={onClose}
+      >
         <div className="flex min-h-full items-center justify-center p-4">
           {/* Modal */}
-          <div className="relative w-full max-w-md glass-modal rounded-2xl modal-enter my-8">
+          <div
+            className="relative w-full max-w-md glass-modal rounded-2xl modal-enter my-8"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Decorative glow */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[100px] bg-violet-600/20 blur-[60px] pointer-events-none" />
 

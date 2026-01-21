@@ -19,7 +19,7 @@ export function Button({
     children,
     ...props
 }: ButtonProps) {
-    const baseStyles = `
+const baseStyles = `
         relative inline-flex items-center justify-center font-semibold
         transition-all duration-300 rounded-xl
         focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0a1e]
@@ -29,13 +29,13 @@ export function Button({
 
     const variants = {
         primary: `
-            bg-gradient-to-r from-violet-600 via-violet-600 to-fuchsia-600
-            hover:from-violet-500 hover:via-violet-500 hover:to-fuchsia-500
+            bg-gradient-to-r from-violet-600 via-violet-600 to-purple-600
+            hover:from-violet-500 hover:via-violet-500 hover:to-purple-500
             text-white font-semibold
-            shadow-lg shadow-violet-600/30
-            hover:shadow-xl hover:shadow-violet-600/40
+            shadow-lg shadow-purple-600/30
+            hover:shadow-xl hover:shadow-purple-600/40
             hover:scale-[1.02]
-            focus-visible:ring-violet-500
+            focus-visible:ring-purple-500
             before:absolute before:inset-0 before:rounded-xl
             before:bg-gradient-to-r before:from-white/10 before:to-transparent
             before:opacity-0 hover:before:opacity-100

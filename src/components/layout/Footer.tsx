@@ -21,7 +21,7 @@ export function Footer() {
                     </div>
 
                     {/* Links */}
-                    <div className="grid grid-cols-2 md:grid-cols-1 gap-8 md:gap-0">
+                    <div className="md:col-span-2 grid grid-cols-2 gap-8">
                         <div>
                             <h3 className="text-white font-semibold mb-3 md:mb-4">Navigation</h3>
                             <ul className="space-y-2 text-sm text-gray-400">
