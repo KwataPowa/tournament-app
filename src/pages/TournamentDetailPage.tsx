@@ -19,7 +19,7 @@ import { BracketView } from '../components/bracket'
 import { generateBracket, nextPowerOf2 } from '../services/brackets'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
-import type { Tournament, Match, MatchFormat, MatchResult, Prediction, Stage, TournamentFormat } from '../types'
+import type { Tournament, Match, MatchFormat, MatchResult, Prediction, Stage, TournamentFormat, ScoringRules } from '../types'
 import { normalizeTeams } from '../types'
 import {
   ScrollText,
@@ -422,9 +422,28 @@ export function TournamentDetailPage() {
       setMatches(data.matches)
       setStages(data.stages)
 
-      // Auto-select first stage if none selected
+      // Auto-select active stage if none selected
       if (data.stages.length > 0 && !activeStageId) {
-        setActiveStageId(data.stages[0].id)
+        // Sort stages by sequence
+        const sortedStages = [...data.stages].sort((a, b) => a.sequence_order - b.sequence_order)
+
+        // Find the first stage that is "active" (empty or has unplayed matches)
+        const activeStage = sortedStages.find(stage => {
+          const stageMatches = data.matches.filter(m =>
+            m.stage_id === stage.id ||
+            (stage.sequence_order === 1 && m.stage_id === null)
+          )
+
+          // Case 1: Stage has no matches yet (needs seeding/setup) -> It's the active one
+          if (stageMatches.length === 0) return true
+
+          // Case 2: Stage has unplayed matches -> It's the current one
+          const hasUnplayed = stageMatches.some(m => m.result === null)
+          return hasUnplayed
+        })
+
+        // Default to found active stage, or the last stage if all are completed
+        setActiveStageId(activeStage ? activeStage.id : sortedStages[sortedStages.length - 1].id)
       }
 
       // Load user predictions if logged in
@@ -475,13 +494,14 @@ export function TournamentDetailPage() {
     }
   }
 
-  const handleCreateStage = async (name: string, type: TournamentFormat) => {
+  const handleCreateStage = async (name: string, type: TournamentFormat, rules: ScoringRules) => {
     if (!tournament) return
     const newStage = await createStage({
       tournament_id: tournament.id,
       name,
       type,
-      sequence_order: stages.length + 1
+      sequence_order: stages.length + 1,
+      scoring_rules: rules
     })
     setStages([...stages, newStage])
     setActiveStageId(newStage.id)
@@ -1430,7 +1450,6 @@ export function TournamentDetailPage() {
       {isEditingStageSettings && activeStage && tournament && (
         <StageSettingsModal
           stage={activeStage}
-          globalRules={tournament.scoring_rules}
           onSave={handleUpdateStage}
           onDelete={handleDeleteStage}
           onClose={() => setIsEditingStageSettings(false)}

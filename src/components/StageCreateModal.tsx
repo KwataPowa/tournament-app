@@ -1,18 +1,27 @@
-import { useState } from 'react'
-import { X, Trophy, List, GitCommit } from 'lucide-react'
-import { Card } from './ui/Card'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { X, Trophy, List, GitCommit, Plus } from 'lucide-react'
 import { Button } from './ui/Button'
 import type { TournamentFormat } from '../types'
 
 interface StageCreateModalProps {
-    onSave: (name: string, type: TournamentFormat) => Promise<void>
+    onSave: (name: string, type: TournamentFormat, rules: { correct_winner_points: number, exact_score_bonus: number }) => Promise<void>
     onClose: () => void
 }
 
 export function StageCreateModal({ onSave, onClose }: StageCreateModalProps) {
     const [name, setName] = useState('')
     const [type, setType] = useState<TournamentFormat>('league')
+    const [rules, setRules] = useState({ correct_winner_points: 3, exact_score_bonus: 1 })
     const [loading, setLoading] = useState(false)
+
+    // Prevent Body Scroll when modal is open
+    useEffect(() => {
+        document.body.style.overflow = 'hidden'
+        return () => {
+            document.body.style.overflow = 'unset'
+        }
+    }, [])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -20,7 +29,7 @@ export function StageCreateModal({ onSave, onClose }: StageCreateModalProps) {
 
         setLoading(true)
         try {
-            await onSave(name, type)
+            await onSave(name, type, rules)
             onClose()
         } catch (err) {
             console.error(err)
@@ -33,107 +42,186 @@ export function StageCreateModal({ onSave, onClose }: StageCreateModalProps) {
         {
             id: 'league',
             label: 'Championnat',
-            icon: <List className="w-4 h-4" />,
+            icon: <List className="w-5 h-5" />,
             desc: 'Tous les participants s\'affrontent dans un classement unique.'
         },
         {
             id: 'single_elimination',
             label: 'Élimination Directe',
-            icon: <Trophy className="w-4 h-4" />,
+            icon: <Trophy className="w-5 h-5" />,
             desc: 'Arbre de tournoi classique. Une défaite est éliminatoire.'
         },
         {
             id: 'double_elimination',
             label: 'Double Élimination',
-            icon: <GitCommit className="w-4 h-4" />,
+            icon: <GitCommit className="w-5 h-5" />,
             desc: 'Arbre avec Winner et Loser bracket. Deux défaites pour être éliminé.'
         },
+        // Swiss not yet fully implemented visually in icons list in this file but keeping for consistency
         {
             id: 'swiss',
             label: 'Rondes Suisses',
-            icon: <List className="w-4 h-4" />,
+            icon: <List className="w-5 h-5" />,
             desc: 'Affrontements par niveau de score similaire à chaque round.'
         }
     ]
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <Card className="w-full max-w-md relative overflow-hidden">
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
-                >
-                    <X className="w-5 h-5" />
-                </button>
+    return createPortal(
+        <div className="fixed inset-0 z-[9999]">
+            {/* Backdrop */}
+            <div
+                className="fixed inset-0 bg-black/80 backdrop-blur-sm modal-backdrop modal-backdrop-enter"
+                onClick={onClose}
+            />
 
-                <h2 className="text-xl font-bold text-white mb-6">Ajouter une phase</h2>
+            {/* Scroll Wrapper */}
+            <div
+                className="fixed inset-0 z-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                onClick={onClose}
+            >
+                <div className="flex min-h-full items-center justify-center p-4">
+                    {/* Modal */}
+                    <div
+                        className="relative w-full max-w-lg glass-modal rounded-2xl modal-enter my-8"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Decorative glow */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[100px] bg-cyan-600/20 blur-[60px] pointer-events-none" />
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Nom de la phase</label>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="Ex: Playoffs, Phase de Groupes"
-                            className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 outline-none transition-all"
-                            autoFocus
-                        />
-                    </div>
+                        {/* Header */}
+                        <div className="relative px-6 py-5 border-b border-white/10 flex-shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center shadow-lg shadow-cyan-500/25">
+                                    <Plus className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-semibold text-white">
+                                        Nouvelle Phase
+                                    </h2>
+                                    <p className="text-sm text-gray-400">
+                                        Définissez le format et les règles de points
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={onClose}
+                                className="absolute top-5 right-5 text-gray-400 hover:text-white transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
 
-                    <div className="space-y-3">
-                        <label className="text-sm font-medium text-gray-300">Format</label>
-                        <div className="grid gap-3">
-                            {formats.map((fmt) => (
-                                <div
-                                    key={fmt.id}
-                                    onClick={() => setType(fmt.id)}
-                                    className={`
-                    cursor-pointer p-3 rounded-lg border transition-all relative overflow-hidden group
-                    ${type === fmt.id
-                                            ? 'bg-violet-600/20 border-violet-500/50'
-                                            : 'bg-white/5 border-white/5 hover:bg-white/10'
-                                        }
-                  `}
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <div className={`mt-0.5 p-1.5 rounded-full ${type === fmt.id ? 'bg-violet-500 text-white' : 'bg-gray-800 text-gray-400'}`}>
-                                            {fmt.icon}
-                                        </div>
-                                        <div>
-                                            <div className={`text-sm font-medium mb-0.5 ${type === fmt.id ? 'text-white' : 'text-gray-300'}`}>
-                                                {fmt.label}
+                        {/* Content */}
+                        <div className="overflow-y-auto custom-scrollbar">
+                            <form onSubmit={handleSubmit} className="relative p-6 space-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-300">Nom de la phase</label>
+                                    <input
+                                        type="text"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        placeholder="Ex: Playoffs, Phase de Groupes"
+                                        className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 outline-none transition-all"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                <div className="h-px bg-white/10" />
+
+                                <div className="space-y-3">
+                                    <label className="text-sm font-medium text-gray-300">Format de la compétition</label>
+                                    <div className="grid gap-3">
+                                        {formats.map((fmt) => (
+                                            <div
+                                                key={fmt.id}
+                                                onClick={() => setType(fmt.id)}
+                                                className={`
+                                                    cursor-pointer p-4 rounded-xl border transition-all relative overflow-hidden group
+                                                    ${type === fmt.id
+                                                        ? 'bg-violet-600/20 border-violet-500/50 shadow-lg shadow-violet-900/20'
+                                                        : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'
+                                                    }
+                                                `}
+                                            >
+                                                <div className="flex items-start gap-4">
+                                                    <div className={`mt-0.5 p-2 rounded-lg transition-colors ${type === fmt.id ? 'bg-violet-500 text-white' : 'bg-white/10 text-gray-400'}`}>
+                                                        {fmt.icon}
+                                                    </div>
+                                                    <div>
+                                                        <div className={`text-sm font-bold mb-1 ${type === fmt.id ? 'text-white' : 'text-gray-200'}`}>
+                                                            {fmt.label}
+                                                        </div>
+                                                        <div className="text-xs text-gray-400 leading-relaxed">
+                                                            {fmt.desc}
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="text-xs text-gray-500 leading-relaxed">
-                                                {fmt.desc}
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="h-px bg-white/10" />
+
+                                <div className="space-y-4">
+                                    <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                                        <Trophy className="w-4 h-4 text-yellow-500" />
+                                        Règles de points spécifiques
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Bon vainqueur</label>
+                                            <div className="relative group">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={rules.correct_winner_points}
+                                                    onChange={(e) => setRules({ ...rules, correct_winner_points: parseInt(e.target.value) || 0 })}
+                                                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-center font-mono text-lg focus:border-violet-500/50 outline-none transition-all group-hover:border-white/20"
+                                                />
+                                                <span className="absolute right-4 top-3.5 text-gray-600 text-xs font-medium">PTS</span>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Score exact (Bonus)</label>
+                                            <div className="relative group">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={rules.exact_score_bonus}
+                                                    onChange={(e) => setRules({ ...rules, exact_score_bonus: parseInt(e.target.value) || 0 })}
+                                                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-center font-mono text-lg focus:border-cyan-500/50 outline-none transition-all group-hover:border-white/20"
+                                                />
+                                                <span className="absolute right-4 top-3.5 text-gray-600 text-xs font-medium">PTS</span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+
+                                <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={onClose}
+                                        disabled={loading}
+                                    >
+                                        Annuler
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        variant="primary"
+                                        disabled={loading || !name.trim()}
+                                        isLoading={loading}
+                                    >
+                                        Créer la phase
+                                    </Button>
+                                </div>
+                            </form>
                         </div>
                     </div>
-
-                    <div className="flex justify-end gap-3 pt-2">
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={onClose}
-                            disabled={loading}
-                        >
-                            Annuler
-                        </Button>
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            disabled={loading || !name.trim()}
-                            isLoading={loading}
-                        >
-                            Créer la phase
-                        </Button>
-                    </div>
-                </form>
-            </Card>
-        </div>
+                </div>
+            </div>
+        </div>,
+        document.body
     )
 }
