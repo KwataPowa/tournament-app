@@ -457,13 +457,47 @@ export function MatchEditModal({
                   /* Mode Édition: Affichage simple des équipes VS */
                   <div className="flex items-center justify-center gap-4 py-4 bg-white/5 rounded-xl border border-white/10">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-xl text-white">{teamA}</span>
-                      {getLogo(teamA) && <img src={getLogo(teamA)} alt={teamA} className="w-6 h-6 object-contain" />}
+                      {/* Team A Display */}
+                      <div>
+                        {canEditTeams ? (
+                          <div className="w-48">
+                            <TeamSelect
+                              value={teamA === 'TBD' ? '' : teamA}
+                              onChange={(val) => setTeamA(val || 'TBD')}
+                              teams={availableTeamsForSlotA.filter(t => t.name !== teamB)}
+                              placeholder="Équipe A"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-xl text-white">{teamA}</span>
+                            {getLogo(teamA) && <img src={getLogo(teamA)} alt={teamA} className="w-6 h-6 object-contain" />}
+                          </div>
+                        )}
+                      </div>
                     </div>
+
                     <span className="text-violet-400 font-bold text-lg">VS</span>
+
                     <div className="flex items-center gap-2">
-                      {getLogo(teamB) && <img src={getLogo(teamB)} alt={teamB} className="w-6 h-6 object-contain" />}
-                      <span className="font-bold text-xl text-white">{teamB}</span>
+                      {/* Team B Display */}
+                      <div>
+                        {canEditTeams ? (
+                          <div className="w-48">
+                            <TeamSelect
+                              value={teamB === 'TBD' ? '' : teamB}
+                              onChange={(val) => setTeamB(val || 'TBD')}
+                              teams={availableTeamsForSlotB.filter(t => t.name !== teamA)}
+                              placeholder="Équipe B"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            {getLogo(teamB) && <img src={getLogo(teamB)} alt={teamB} className="w-6 h-6 object-contain" />}
+                            <span className="font-bold text-xl text-white">{teamB}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -476,7 +510,7 @@ export function MatchEditModal({
                         <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
                           Équipe A
                         </label>
-                        {canEditTeams && (teamA === 'TBD' || teamA === '') ? (
+                        {canEditTeams ? (
                           <TeamSelect
                             value={teamA === 'TBD' ? '' : teamA}
                             onChange={(val) => setTeamA(val || 'TBD')}
@@ -502,7 +536,7 @@ export function MatchEditModal({
                         <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
                           Équipe B
                         </label>
-                        {canEditTeams && (teamB === 'TBD' || teamB === '') ? (
+                        {canEditTeams ? (
                           <TeamSelect
                             value={teamB === 'TBD' ? '' : teamB}
                             onChange={(val) => setTeamB(val || 'TBD')}

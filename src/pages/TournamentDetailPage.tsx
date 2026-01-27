@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef, useLayoutEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuthContext } from '../lib/AuthContext'
-import { getTournamentWithMatches, updateTournament, deleteTournament, removeParticipant, updateParticipantBonus } from '../services/tournaments'
+import { getTournamentWithMatches, updateTournament, deleteTournament, removeParticipant, updateParticipantBonus, createStage, updateStage, deleteStage } from '../services/tournaments'
 import { createMatch, updateMatch, deleteMatch, enterMatchResult, updateMatchResultRecursive, recalculateTournamentPoints } from '../services/matches'
 import { getUserPredictionsForTournament, createOrUpdatePrediction } from '../services/predictions'
 import { getLeaderboard, type LeaderboardEntry } from '../services/leaderboard'
@@ -12,10 +12,14 @@ import { PredictionModal } from '../components/PredictionModal'
 import { LeaderboardTable } from '../components/LeaderboardTable'
 import { LeagueStandingsTable } from '../components/LeagueStandingsTable'
 import { LeagueMatchRow } from '../components/LeagueMatchRow'
+import { StageCreateModal } from '../components/StageCreateModal'
+import { StageSettingsModal } from '../components/StageSettingsModal'
+import { StageSeedingModal } from '../components/StageSeedingModal'
 import { BracketView } from '../components/bracket'
+import { generateBracket, nextPowerOf2 } from '../services/brackets'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
-import type { Tournament, Match, MatchFormat, MatchResult, Prediction } from '../types'
+import type { Tournament, Match, MatchFormat, MatchResult, Prediction, Stage, TournamentFormat } from '../types'
 import { normalizeTeams } from '../types'
 import {
   ScrollText,
@@ -34,7 +38,9 @@ import {
   X,
   Edit2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  List,
+  GitMerge
 } from 'lucide-react'
 
 export function TournamentDetailPage() {
@@ -48,7 +54,30 @@ export function TournamentDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
+  // Stages state
+  const [stages, setStages] = useState<Stage[]>([])
+  const [activeStageId, setActiveStageId] = useState<string | null>(null)
+
+  const activeStage = useMemo(() =>
+    stages.find(s => s.id === activeStageId) || stages[0] || null
+    , [stages, activeStageId])
+
+  // Filter matches for current stage
+  const stageMatches = useMemo(() => {
+    if (!activeStage) return []
+    // If migration hasn't run yet or mixed data, detailed check:
+    // Ideally all matches have stage_id. If not, maybe show all?
+    // Let's assume matches have stage_id if stages exist.
+    // FIX: Include orphaned matches (null stage_id) if we are in the main stage (sequence 1)
+    // This handles legacy matches and race conditions during creation.
+    return matches.filter(m => m.stage_id === activeStage?.id || (activeStage.sequence_order === 1 && m.stage_id == null))
+  }, [matches, activeStage])
+
   // Modal state
+  // Modal state
+  const [isAddingStage, setIsAddingStage] = useState(false)
+  const [isEditingStageSettings, setIsEditingStageSettings] = useState(false)
+  const [isSeedingStage, setIsSeedingStage] = useState(false)
   const [editingMatch, setEditingMatch] = useState<Match | null>(null)
   const [isAddingMatch, setIsAddingMatch] = useState(false)
   const [addingToRound, setAddingToRound] = useState<number>(1)
@@ -83,12 +112,15 @@ export function TournamentDetailPage() {
   const isAdmin = tournament?.admin_id === user?.id
 
   // Déterminer si c'est un format bracket (elimination)
-  const isBracketFormat = tournament?.format === 'single_elimination' || tournament?.format === 'double_elimination'
+  // Basé sur le stage actif si disponible, sinon sur le tournoi (legacy/fallback)
+  const isBracketFormat = activeStage
+    ? (activeStage.type === 'single_elimination' || activeStage.type === 'double_elimination')
+    : (tournament?.format === 'single_elimination' || tournament?.format === 'double_elimination')
 
-  // Grouper les matchs par journée
+  // Grouper les matchs par journée (pour l'affichage Ligue)
   const matchesByRound = useMemo(() => {
     const grouped: Record<number, Match[]> = {}
-    matches.forEach((match) => {
+    stageMatches.forEach((match) => {
       if (!grouped[match.round]) {
         grouped[match.round] = []
       }
@@ -116,7 +148,7 @@ export function TournamentDetailPage() {
     })
 
     return grouped
-  }, [matches])
+  }, [stageMatches])
 
   const rounds = Object.keys(matchesByRound)
     .map(Number)
@@ -239,10 +271,15 @@ export function TournamentDetailPage() {
 
 
   // Pour les brackets: calculer les équipes déjà assignées dans un round donné
-  const getAssignedTeamsInRound = (round: number, bracketSide: string | null) => {
+  const getAssignedTeamsInRound = (round: number, bracketSide: string | null, stageId: string | null) => {
     const assigned = new Set<string>()
     matches
-      .filter((m) => m.round === round && m.bracket_side === bracketSide && m.bracket_position !== null)
+      .filter((m) =>
+        m.round === round &&
+        m.bracket_side === bracketSide &&
+        m.bracket_position !== null &&
+        m.stage_id === stageId
+      )
       .forEach((m) => {
         if (m.team_a !== 'TBD') assigned.add(m.team_a)
         if (m.team_b !== 'TBD') assigned.add(m.team_b)
@@ -305,7 +342,7 @@ export function TournamentDetailPage() {
     if (!match) return []
 
     const baseTeams = getAvailableTeamsForRound(match)
-    const assignedInRound = getAssignedTeamsInRound(match.round, match.bracket_side)
+    const assignedInRound = getAssignedTeamsInRound(match.round, match.bracket_side, match.stage_id)
 
     // Exclure les équipes déjà assignées dans ce round (sauf celle actuellement dans CE match pour CE slot)
     const currentTeam = slot === 'team_a' ? match.team_a : match.team_b
@@ -383,6 +420,12 @@ export function TournamentDetailPage() {
       const data = await getTournamentWithMatches(id)
       setTournament(data.tournament)
       setMatches(data.matches)
+      setStages(data.stages)
+
+      // Auto-select first stage if none selected
+      if (data.stages.length > 0 && !activeStageId) {
+        setActiveStageId(data.stages[0].id)
+      }
 
       // Load user predictions if logged in
       if (user?.id) {
@@ -427,6 +470,92 @@ export function TournamentDetailPage() {
       loadLeaderboard()
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erreur lors de l\'activation')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleCreateStage = async (name: string, type: TournamentFormat) => {
+    if (!tournament) return
+    const newStage = await createStage({
+      tournament_id: tournament.id,
+      name,
+      type,
+      sequence_order: stages.length + 1
+    })
+    setStages([...stages, newStage])
+    setActiveStageId(newStage.id)
+    setIsAddingStage(false)
+  }
+
+  const handleUpdateStage = async (stageId: string, updates: Partial<Stage>) => {
+    // @ts-ignore - StageUpdate type mismatch workaround if needed, but should be fine
+    const updated = await updateStage(stageId, updates)
+    setStages(prev => prev.map(s => s.id === stageId ? updated : s))
+    setIsEditingStageSettings(false)
+  }
+
+  const handleDeleteStage = async (stageId: string) => {
+    await deleteStage(stageId)
+    // Remove from state
+    const remaining = stages.filter(s => s.id !== stageId)
+    setStages(remaining)
+    // If active was deleted, switch to first available
+    if (activeStageId === stageId) {
+      setActiveStageId(remaining.length > 0 ? remaining[0].id : null)
+    }
+    setIsEditingStageSettings(false)
+  }
+
+  const handleSeeding = async (selectedTeams: { name: string, logo?: string }[], generationMode: 'auto' | 'manual') => {
+    if (!activeStage || !tournament) return
+    setActionLoading(true)
+    try {
+      const teamNames = selectedTeams.map(t => t.name)
+
+      // 1. Bracket Generation
+      if (activeStage.type === 'single_elimination' || activeStage.type === 'double_elimination') {
+        const bracketSize = nextPowerOf2(teamNames.length)
+
+        // Préparer les équipes selon le mode de génération
+        let teamsToSeed: string[] = []
+        if (generationMode === 'auto') {
+          // Mélanger les équipes aléatoirement (Fisher-Yates shuffle)
+          const shuffled = [...teamNames]
+          for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+          }
+          teamsToSeed = shuffled
+        }
+        // Si mode 'manual', teamsToSeed reste vide -> matchs en TBD
+
+        const newMatches = await generateBracket(
+          tournament.id,
+          bracketSize,
+          activeStage.type,
+          'BO3', // Default format, maybe make configurable?
+          teamsToSeed,
+          activeStage.id
+        )
+        setMatches(prev => [...prev, ...newMatches])
+      }
+      // 2. League Generation (Simple Round Robin)
+      else if (activeStage.type === 'league') {
+        // Generate Round Robin matches for selected teams
+        // Simple Implementation: just 1 round for now or 2 if global home_and_away is set? 
+        // Let's defer strict round robin logic for now and just add empty matches or better,
+        // warn user that league auto-generation is basic.
+        // Actually, let's skip auto-generation for League for now to keep it safe, 
+        // or implement a basic one.
+
+        // For now, let's just alert
+        alert("La génération automatique pour le championnat n'est pas encore active. Vous pouvez ajouter les matchs manuellement.")
+      }
+
+      setIsSeedingStage(false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erreur seeding')
     } finally {
       setActionLoading(false)
     }
@@ -644,6 +773,10 @@ export function TournamentDetailPage() {
 
   const playedMatches = matches.filter((m) => m.result !== null).length
 
+  // Effective Rules Calculation
+  const hasStageRules = activeStage?.scoring_rules != null
+  const effectiveRules = activeStage?.scoring_rules || tournament.scoring_rules
+
   return (
     <div className="space-y-8 overflow-hidden">
       {/* HEADER */}
@@ -687,6 +820,64 @@ export function TournamentDetailPage() {
           )}
         </div>
       </Card>
+
+      {/* STAGE SELECTOR (Multi-Stage Navigation) */}
+      {stages.length > 0 && (
+        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-1.5 border border-white/5">
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+            {stages.map((stage) => {
+              // Format icon based on stage type
+              const FormatIcon = stage.type === 'league' || stage.type === 'swiss'
+                ? List
+                : stage.type === 'double_elimination'
+                  ? GitMerge
+                  : Trophy
+
+              return (
+                <button
+                  key={stage.id}
+                  onClick={() => setActiveStageId(stage.id)}
+                  className={`
+                    flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all whitespace-nowrap
+                    ${activeStageId === stage.id
+                      ? 'bg-gradient-to-r from-violet-600 to-violet-500 text-white shadow-lg shadow-violet-500/25'
+                      : 'text-gray-400 hover:text-white hover:bg-white/10'
+                    }
+                  `}
+                >
+                  <FormatIcon className={`w-4 h-4 ${activeStageId === stage.id ? 'text-violet-200' : 'text-gray-500'}`} />
+                  {stage.name}
+                </button>
+              )
+            })}
+
+            {/* Admin Add Stage Button */}
+            {isAdmin && (
+              <>
+                <div className="w-px h-6 bg-white/10 mx-1" />
+                <button
+                  onClick={() => setIsAddingStage(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-gray-400 hover:text-violet-400 hover:bg-violet-500/10 transition-all border border-dashed border-white/10 hover:border-violet-500/30"
+                  title="Ajouter une phase"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="text-xs font-medium hidden sm:inline">Phase</span>
+                </button>
+
+                {activeStage && (
+                  <button
+                    onClick={() => setIsEditingStageSettings(true)}
+                    className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                    title="Paramètres de la phase"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
 
       {/* 
@@ -747,11 +938,15 @@ export function TournamentDetailPage() {
             {isAdmin && !isEditingPoints && (
               <button
                 onClick={() => {
+                  if (hasStageRules) {
+                    alert("Cette phase a ses propres règles. Modifiez-les via les paramètres de la phase (roue dentée).")
+                    return
+                  }
                   setPointsForm(tournament.scoring_rules)
                   setIsEditingPoints(true)
                 }}
-                className="text-blue-400 hover:text-blue-300 transition-colors p-1"
-                title="Modifier les points"
+                className={`transition-colors p-1 ${hasStageRules ? 'text-gray-600 cursor-not-allowed' : 'text-blue-400 hover:text-blue-300'}`}
+                title={hasStageRules ? "Règles gérées par la phase" : "Modifier les points globaux"}
               >
                 <Edit2 className="w-3.5 h-3.5" />
               </button>
@@ -805,12 +1000,21 @@ export function TournamentDetailPage() {
               <>
                 <div className="flex items-center gap-2">
                   <span className="text-gray-400">Vainqueur:</span>
-                  <span className="font-mono text-violet-400 font-bold">{tournament.scoring_rules.correct_winner_points} pts</span>
+                  <span className={`font-mono font-bold ${hasStageRules ? 'text-amber-400' : 'text-violet-400'}`}>
+                    {effectiveRules.correct_winner_points} pts
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-gray-400">Score Exact:</span>
-                  <span className="font-mono text-cyan-400 font-bold">{tournament.scoring_rules.exact_score_bonus} pts</span>
+                  <span className={`font-mono font-bold ${hasStageRules ? 'text-amber-400' : 'text-cyan-400'}`}>
+                    {effectiveRules.exact_score_bonus} pts
+                  </span>
                 </div>
+                {hasStageRules && (
+                  <span className="text-[10px] uppercase font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 ml-auto">
+                    Phase
+                  </span>
+                )}
               </>
             )}
           </div>
@@ -931,17 +1135,33 @@ export function TournamentDetailPage() {
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <Medal className="w-5 h-5 text-cyan-400" /> Bracket
             </h2>
-            <BracketView
-              matches={matches}
-              predictions={predictions}
-              tournament={tournament}
-              isAdmin={isAdmin}
-              onEnterResult={(match) => setResultMatch(match)}
-              onPredict={(match) => setPredictionMatch(match)}
-              onChangeFormat={handleChangeFormat}
-              onEdit={openEditMatch}
-              teams={teams}
-            />
+
+            {stageMatches.length === 0 && isAdmin ? (
+              <div className="flex flex-col items-center justify-center py-12 bg-white/5 rounded-lg border border-dashed border-white/10 space-y-4">
+                <div className="p-4 bg-violet-500/10 rounded-full">
+                  <Users className="w-8 h-8 text-violet-400" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-medium text-white">Cette phase est vide</h3>
+                  <p className="text-gray-400 text-sm max-w-sm mt-1">Sélectionnez les équipes participantes pour générer l'arbre automatiquement.</p>
+                </div>
+                <Button onClick={() => setIsSeedingStage(true)}>
+                  Configurer les participants
+                </Button>
+              </div>
+            ) : (
+              <BracketView
+                matches={stageMatches}
+                predictions={predictions}
+                tournament={tournament}
+                isAdmin={isAdmin}
+                onEnterResult={(match) => setResultMatch(match)}
+                onPredict={(match) => setPredictionMatch(match)}
+                onChangeFormat={handleChangeFormat}
+                onEdit={openEditMatch}
+                teams={teams}
+              />
+            )}
           </Card>
         </div>
       ) : (
@@ -974,7 +1194,7 @@ export function TournamentDetailPage() {
                 <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                   <Users className="w-5 h-5 text-gray-400" /> Classement des équipes
                 </h2>
-                <LeagueStandingsTable teams={teams} matches={matches} />
+                <LeagueStandingsTable teams={teams} matches={stageMatches} />
               </Card>
             </div>
 
@@ -1165,7 +1385,7 @@ export function TournamentDetailPage() {
           teams={teams}
           maxRound={maxRound}
           defaultRound={addingToRound}
-          existingMatches={matches}
+          existingMatches={stageMatches}
           homeAndAway={tournament.home_and_away}
           tournamentStatus={tournament.status}
           isBracket={isBracketFormat}
@@ -1197,6 +1417,32 @@ export function TournamentDetailPage() {
           onClose={() => setPredictionMatch(null)}
           roundDate={tournament.round_dates?.[predictionMatch.round.toString()]}
           teams={teams}
+        />
+      )}
+
+      {isAddingStage && (
+        <StageCreateModal
+          onSave={handleCreateStage}
+          onClose={() => setIsAddingStage(false)}
+        />
+      )}
+
+      {isEditingStageSettings && activeStage && tournament && (
+        <StageSettingsModal
+          stage={activeStage}
+          globalRules={tournament.scoring_rules}
+          onSave={handleUpdateStage}
+          onDelete={handleDeleteStage}
+          onClose={() => setIsEditingStageSettings(false)}
+        />
+      )}
+
+      {isSeedingStage && activeStage && (
+        <StageSeedingModal
+          stage={activeStage}
+          allTeams={teams} // All teams available in tournament
+          onSave={handleSeeding}
+          onClose={() => setIsSeedingStage(false)}
         />
       )}
     </div>

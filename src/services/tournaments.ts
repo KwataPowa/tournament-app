@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import type { Tournament, TournamentInsert, TournamentUpdate, Match } from '../types'
+import type { Tournament, TournamentInsert, TournamentUpdate, Match, Stage, StageInsert, StageUpdate } from '../types'
 
 export async function createTournament(data: TournamentInsert): Promise<Tournament> {
   const { data: tournament, error } = await supabase
@@ -32,6 +32,7 @@ export async function getTournament(id: string): Promise<Tournament> {
 export async function getTournamentWithMatches(id: string): Promise<{
   tournament: Tournament
   matches: Match[]
+  stages: Stage[]
 }> {
   const { data: tournament, error: tournamentError } = await supabase
     .from('tournaments')
@@ -54,9 +55,20 @@ export async function getTournamentWithMatches(id: string): Promise<{
     throw new Error(matchesError.message)
   }
 
+  const { data: stages, error: stagesError } = await supabase
+    .from('stages')
+    .select()
+    .eq('tournament_id', id)
+    .order('sequence_order', { ascending: true })
+
+  if (stagesError) {
+    throw new Error(stagesError.message)
+  }
+
   return {
     tournament: tournament as Tournament,
     matches: matches as Match[],
+    stages: stages as Stage[],
   }
 }
 
@@ -195,17 +207,59 @@ export async function removeParticipant(tournamentId: string, userId: string): P
  * Mettre à jour les points bonus d'un participant
  */
 export async function updateParticipantBonus(
-    tournamentId: string,
-    userId: string,
-    bonusPoints: number
+  tournamentId: string,
+  userId: string,
+  bonusPoints: number
 ): Promise<void> {
-    const { error } = await supabase
-        .from('participants')
-        .update({ bonus_points: bonusPoints })
-        .eq('tournament_id', tournamentId)
-        .eq('user_id', userId)
+  const { error } = await supabase
+    .from('participants')
+    .update({ bonus_points: bonusPoints })
+    .eq('tournament_id', tournamentId)
+    .eq('user_id', userId)
 
-    if (error) {
-        throw new Error(error.message)
-    }
+  if (error) {
+    throw new Error(error.message)
+  }
+}
+
+// Stage Management
+
+export async function createStage(data: StageInsert): Promise<Stage> {
+  const { data: stage, error } = await supabase
+    .from('stages')
+    .insert(data)
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return stage as Stage
+}
+
+export async function updateStage(id: string, data: StageUpdate): Promise<Stage> {
+  const { data: stage, error } = await supabase
+    .from('stages')
+    .update(data)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return stage as Stage
+}
+
+export async function deleteStage(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('stages')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    throw new Error(error.message)
+  }
 }

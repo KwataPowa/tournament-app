@@ -98,7 +98,8 @@ export async function generateSingleEliminationBracket(
   tournamentId: string,
   bracketSize: number,
   defaultMatchFormat: MatchFormat = 'BO3',
-  teams: string[] = []
+  teams: string[] = [],
+  stageId?: string | null
 ): Promise<Match[]> {
   const totalRounds = calculateTotalRounds(bracketSize)
   const matchesToCreate: MatchInsert[] = []
@@ -165,6 +166,7 @@ export async function generateSingleEliminationBracket(
         next_match_id: nextMatchId,
         is_bye,
         match_format: matchFormat,
+        stage_id: stageId
       })
     }
   }
@@ -196,7 +198,8 @@ export async function generateDoubleEliminationBracket(
   tournamentId: string,
   bracketSize: number,
   defaultMatchFormat: MatchFormat = 'BO3',
-  teams: string[] = []
+  teams: string[] = [],
+  stageId?: string | null
 ): Promise<Match[]> {
   const totalWinnersRounds = calculateTotalRounds(bracketSize)
   // Losers bracket has more rounds: 2 * (totalWinnersRounds - 1)
@@ -330,7 +333,9 @@ export async function generateDoubleEliminationBracket(
         target_slot_winner: targetSlotWinner,
         target_slot_loser: targetSlotLoser,
         is_bye,
+
         match_format: matchFormat,
+        stage_id: stageId
       })
     }
   }
@@ -402,6 +407,7 @@ export async function generateDoubleEliminationBracket(
     next_match_id: null,
     is_bye: false,
     match_format: 'BO5',
+    stage_id: stageId
   })
 
   // Insert all matches
@@ -426,21 +432,24 @@ export async function generateBracket(
   bracketSize: number,
   format: TournamentFormat,
   defaultMatchFormat: MatchFormat = 'BO3',
-  teams: string[] = []
+  teams: string[] = [],
+  stageId?: string | null
 ): Promise<Match[]> {
   if (format === 'single_elimination') {
     return generateSingleEliminationBracket(
       tournamentId,
       bracketSize,
       defaultMatchFormat,
-      teams
+      teams,
+      stageId
     )
   } else if (format === 'double_elimination') {
     return generateDoubleEliminationBracket(
       tournamentId,
       bracketSize,
       defaultMatchFormat,
-      teams
+      teams,
+      stageId
     )
   }
 

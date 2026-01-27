@@ -96,6 +96,7 @@ export type Database = {
           team_a: string
           team_b: string
           match_format: MatchFormat
+          stage_id: string | null
           result: MatchResult | null
           round: number
           locked_at: string | null
@@ -117,6 +118,7 @@ export type Database = {
           team_a: string
           team_b: string
           match_format?: MatchFormat
+          stage_id?: string | null
           result?: MatchResult | null
           round?: number
           locked_at?: string | null
@@ -138,6 +140,7 @@ export type Database = {
           team_a?: string
           team_b?: string
           match_format?: MatchFormat
+          stage_id?: string | null
           result?: MatchResult | null
           round?: number
           locked_at?: string | null
@@ -232,6 +235,38 @@ export type Database = {
           updated_at?: string
         }
       }
+      stages: {
+        Row: {
+          id: string
+          tournament_id: string
+          name: string
+          type: TournamentFormat
+          sequence_order: number
+          settings: Record<string, any>
+          scoring_rules: ScoringRules | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tournament_id: string
+          name: string
+          type: TournamentFormat
+          sequence_order?: number
+          settings?: Record<string, any>
+          scoring_rules?: ScoringRules | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tournament_id?: string
+          name?: string
+          type?: TournamentFormat
+          sequence_order?: number
+          settings?: Record<string, any>
+          scoring_rules?: ScoringRules | null
+          created_at?: string
+        }
+      }
     }
   }
 }
@@ -256,6 +291,10 @@ export type ParticipantUpdate = Database['public']['Tables']['participants']['Up
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type ProfileInsert = Database['public']['Tables']['profiles']['Insert']
 export type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
+
+export type Stage = Database['public']['Tables']['stages']['Row']
+export type StageInsert = Database['public']['Tables']['stages']['Insert']
+export type StageUpdate = Database['public']['Tables']['stages']['Update']
 
 // Bracket-specific types
 export type BracketMatch = Match & {

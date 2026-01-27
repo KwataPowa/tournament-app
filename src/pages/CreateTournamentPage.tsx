@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuthContext } from '../lib/AuthContext'
 import { createTournament, calculateExpectedMatches } from '../services/tournaments'
 import { generateBracket, nextPowerOf2 } from '../services/brackets'
+import { supabase } from '../lib/supabase'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
@@ -48,6 +49,7 @@ export function CreateTournamentPage() {
   const [format, setFormat] = useState<TournamentFormat>('league')
   const [homeAndAway, setHomeAndAway] = useState(false)
   const [defaultMatchFormat, setDefaultMatchFormat] = useState<MatchFormat>('BO3')
+  const [seedingMode, setSeedingMode] = useState<'random' | 'manual'>('random')
   const [teamInputs, setTeamInputs] = useState<TeamInput[]>([
     { id: crypto.randomUUID(), name: '', logo: '' },
     { id: crypto.randomUUID(), name: '', logo: '' },
@@ -175,12 +177,53 @@ export function CreateTournamentPage() {
       // Si c'est un format elimination, générer le bracket vide
       // Les équipes seront assignées manuellement par l'admin
       if (isElimination) {
+        // Fetch the default stage created by trigger with retry mechanism
+        // Triggers can be slightly async in propagation
+        let stageId: string | null = null
+        let retries = 0
+        while (!stageId && retries < 5) {
+          const { data: stage } = await supabase
+            .from('stages')
+            .select('id')
+            .eq('tournament_id', tournament.id)
+            .single()
+
+          if (stage) {
+            stageId = stage.id
+          } else {
+            // Wait 500ms
+            await new Promise(resolve => setTimeout(resolve, 500))
+            retries++
+          }
+        }
+
+        if (!stageId) {
+          console.error("Failed to retrieve default stage after creation")
+          // Fallback: Continue without stage ID (will be orphaned but filtered correctly normally)
+        }
+
         const actualBracketSize = nextPowerOf2(teams.length)
+
+        // Préparer les équipes selon le mode de seeding
+        let teamsToSeed: string[] = []
+        if (seedingMode === 'random') {
+          // Mélanger les équipes aléatoirement (Fisher-Yates shuffle)
+          const shuffled = [...teams.map(t => t.name)]
+          for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+          }
+          teamsToSeed = shuffled
+        }
+        // Si mode 'manual', teamsToSeed reste vide -> matchs en TBD
+
         await generateBracket(
           tournament.id,
           actualBracketSize,
           format,
-          defaultMatchFormat
+          defaultMatchFormat,
+          teamsToSeed,
+          stageId // Link to default stage
         )
       }
 
@@ -395,6 +438,56 @@ export function CreateTournamentPage() {
                   ))}
                 </div>
 
+                {/* Mode de placement des équipes */}
+                <div className="mt-6">
+                  <label className="block text-sm font-medium text-gray-300 mb-3">
+                    Placement des équipes
+                  </label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setSeedingMode('random')}
+                      className={`
+                        relative p-4 rounded-xl border-2 text-left transition-all duration-300
+                        ${seedingMode === 'random'
+                          ? 'bg-cyan-500/10 border-cyan-500 shadow-lg shadow-cyan-500/20'
+                          : 'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/10'
+                        }
+                      `}
+                    >
+                      {seedingMode === 'random' && (
+                        <span className="absolute top-3 right-3 text-cyan-400"><Check className="w-4 h-4" /></span>
+                      )}
+                      <span className={`font-semibold block mb-1 ${seedingMode === 'random' ? 'text-cyan-400' : 'text-white'}`}>
+                        🎲 Aléatoire
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        Les équipes sont placées au hasard dans le bracket
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSeedingMode('manual')}
+                      className={`
+                        relative p-4 rounded-xl border-2 text-left transition-all duration-300
+                        ${seedingMode === 'manual'
+                          ? 'bg-violet-500/10 border-violet-500 shadow-lg shadow-violet-500/20'
+                          : 'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/10'
+                        }
+                      `}
+                    >
+                      {seedingMode === 'manual' && (
+                        <span className="absolute top-3 right-3 text-violet-400"><Check className="w-4 h-4" /></span>
+                      )}
+                      <span className={`font-semibold block mb-1 ${seedingMode === 'manual' ? 'text-violet-400' : 'text-white'}`}>
+                        ✏️ Manuel
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        Tu places les équipes toi-même après la création
+                      </span>
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
