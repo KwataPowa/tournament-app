@@ -1014,7 +1014,11 @@
       0 4px 24px rgba(0, 0, 0, 0.3),
       inset 0 1px 0 var(--glass-opacity-light);
     border-radius: 1rem;
-    @apply transition-standard hover-lift;
+    transition: all var(--transition-normal) var(--transition-ease);
+  }
+
+  .dashboard-card:hover {
+    transform: translateY(-2px);
   }
 
   .dashboard-card-header {
@@ -1037,23 +1041,61 @@
       0 4px 24px rgba(0, 0, 0, 0.3),
       inset 0 1px 0 var(--glass-opacity-light);
     border-radius: 1rem;
-    @apply hover-lift flex items-center gap-4 p-4;
+    transition: all var(--transition-normal) var(--transition-ease);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .stats-card:hover {
+    transform: translateY(-2px);
   }
 
   .stats-icon {
-    @apply w-12 h-12 rounded-xl flex items-center justify-center shrink-0;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
 
   .stats-icon-primary {
-    @apply stats-icon bg-violet-500/10 text-violet-400;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background-color: rgba(139, 92, 246, 0.1);
+    color: #a78bfa;
   }
 
   .stats-icon-accent {
-    @apply stats-icon bg-cyan-500/10 text-cyan-400;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background-color: rgba(6, 182, 212, 0.1);
+    color: #22d3ee;
   }
 
   .stats-icon-amber {
-    @apply stats-icon bg-amber-500/10 text-amber-400;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background-color: rgba(245, 158, 11, 0.1);
+    color: #fbbf24;
   }
 
   .stats-content {
@@ -1128,7 +1170,52 @@
 
   /* Match prediction cards */
   .match-prediction-card {
-    @apply group relative p-4 glass-panel hover-glass-panel transition-all duration-300 rounded-xl;
+    position: relative;
+    padding: 1rem;
+    background: linear-gradient(135deg,
+        var(--glass-opacity-strong) 0%,
+        var(--glass-opacity-medium) 100%);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid var(--color-border);
+    box-shadow:
+      0 4px 24px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 var(--glass-opacity-light);
+    border-radius: 0.75rem;
+    transition: all 300ms;
+    cursor: pointer;
+  }
+
+  .match-prediction-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, transparent, var(--glow-primary), transparent);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity var(--transition-normal) ease;
+    pointer-events: none;
+  }
+
+  .match-prediction-card:hover {
+    background: linear-gradient(135deg,
+        var(--glass-opacity-heavy) 0%,
+        var(--glass-opacity-strong) 100%);
+    border-color: var(--color-border-hover);
+    box-shadow:
+      0 8px 40px rgba(0, 0, 0, 0.4),
+      0 0 30px var(--glow-primary-subtle),
+      inset 0 1px 0 var(--glass-opacity-medium);
+    transform: translateY(-2px);
+  }
+
+  .match-prediction-card:hover::before {
+    opacity: 1;
   }
 
   .match-header {
