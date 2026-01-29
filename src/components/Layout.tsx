@@ -202,7 +202,7 @@ export function Layout() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full pt-28 px-4 md:px-8 lg:px-10 pb-24 md:pb-10 relative z-10 flex flex-col items-center">
+      <main className="flex-1 w-full pt-28 px-4 md:px-8 lg:px-10 pb-32 relative z-10 flex flex-col items-center">
         <div className="w-full max-w-[1400px] animate-fade-scale">
           <Outlet />
         </div>

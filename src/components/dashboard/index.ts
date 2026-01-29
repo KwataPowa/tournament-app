@@ -1,0 +1,5 @@
+export { EnhancedDashboard } from './EnhancedDashboard'
+export { OptimizedDashboardPage } from './OptimizedDashboardPage'
+export { StatCard } from './StatCard'
+export { PendingPredictions } from './PendingPredictions'
+export { RecentActivity } from './RecentActivity'

@@ -1,6 +1,6 @@
 import React from 'react';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'accent';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -58,6 +58,19 @@ const baseStyles = `
             border border-red-500/20 hover:border-red-500/40
             hover:bg-red-500/20 hover:text-red-300
             focus-visible:ring-red-500
+        `,
+        accent: `
+            bg-gradient-to-r from-cyan-600 via-cyan-600 to-cyan-500
+            hover:from-cyan-500 hover:via-cyan-500 hover:to-cyan-400
+            text-white font-semibold
+            shadow-lg shadow-cyan-600/30
+            hover:shadow-xl hover:shadow-cyan-600/40
+            hover:scale-[1.02]
+            focus-visible:ring-cyan-500
+            before:absolute before:inset-0 before:rounded-xl
+            before:bg-gradient-to-r before:from-white/10 before:to-transparent
+            before:opacity-0 hover:before:opacity-100
+            before:transition-opacity before:duration-300
         `,
     };
 
