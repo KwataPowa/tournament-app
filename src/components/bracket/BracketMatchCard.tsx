@@ -32,6 +32,7 @@ export function BracketMatchCard({
   const isTBD = match.team_a === 'TBD' || match.team_b === 'TBD'
   const hasResult = match.result !== null
   const isBye = match.is_bye
+  const isByeName = match.team_a === 'BYE' || match.team_b === 'BYE'
 
   // Locking logic
   const now = new Date()
@@ -39,12 +40,10 @@ export function BracketMatchCard({
   const isStarted = startTime ? now >= startTime : false
   const isPredictionLocked = hasResult || isStarted
 
-  const isClickable = (!isBye && !isTBD) || isAdmin
-
-
+  const isClickable = (!isBye && !isByeName && !isTBD) || isAdmin
 
   const handleCardClick = () => {
-    if (isBye) return
+    if (isBye || isByeName) return
 
     // L'admin peut éditer le match (format, date, résultat) en cliquant
     if (isAdmin && onEdit) {
@@ -231,19 +230,19 @@ export function BracketMatchCard({
                     alert("Le match a commencé ou est terminé, les pronostics sont verrouillés.")
                     return
                   }
-                  if (!isTBD) onPredict(match)
+                  if (!isTBD && !isByeName) onPredict(match)
                 }}
-                disabled={isTBD || isPredictionLocked}
+                disabled={isTBD || isPredictionLocked || isByeName}
                 className={`
                   flex-1 px-2 py-1 text-[10px] font-medium rounded transition-colors
                   ${isTBD
                     ? 'bg-white/5 text-gray-500 cursor-not-allowed'
-                    : isPredictionLocked
+                    : (isPredictionLocked || isByeName)
                       ? 'bg-white/5 text-gray-500 cursor-not-allowed' // Locked state
                       : 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 cursor-pointer'}
                 `}
               >
-                {isPredictionLocked ? 'Verrouillé' : 'Pronostiquer'}
+                {isByeName ? 'Exempté' : (isPredictionLocked ? 'Verrouillé' : 'Pronostiquer')}
               </button>
             )}
             {/* Bouton modifier pronostic */}

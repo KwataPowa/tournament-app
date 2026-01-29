@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useCallback, useRef, useLayoutEffect } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthContext } from '../lib/AuthContext'
 import { getTournamentWithMatches, updateTournament, deleteTournament, removeParticipant, updateParticipantBonus, createStage, updateStage, deleteStage } from '../services/tournaments'
 import { createMatch, updateMatch, deleteMatch, enterMatchResult, updateMatchResultRecursive, recalculateTournamentPoints } from '../services/matches'
@@ -49,6 +49,13 @@ export function TournamentDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuthContext()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // Deep link params - read once and track if we've handled them
+  const deepLinkHandledRef = useRef(false)
+  const urlRound = searchParams.get('round')
+  const urlMatchId = searchParams.get('matchId')
+  const hasDeepLink = !!(urlRound || urlMatchId)
 
   const [tournament, setTournament] = useState<Tournament | null>(null)
   const [matches, setMatches] = useState<Match[]>([])
@@ -76,7 +83,8 @@ export function TournamentDetailPage() {
 
   // Filter matches for current stage
   const stageMatches = useMemo(() => {
-    if (!activeStage) return []
+    // FIX: If no stages exist (legacy tournaments or simple leagues), show all matches
+    if (!activeStage) return matches
     // If migration hasn't run yet or mixed data, detailed check:
     // Ideally all matches have stage_id. If not, maybe show all?
     // Let's assume matches have stage_id if stages exist.
@@ -180,27 +188,52 @@ export function TournamentDetailPage() {
 
 
 
-  // Auto-center selected round (Legacy for desktop/if needed, though we are moving to dropdown on mobile)
+  // Auto-center selected round ONCE after initial round selection
+  const initialRoundCenteredRef = useRef(false)
+  const prevSelectedRoundRef = useRef(selectedRound)
+  // Track if round has been initialized (to prevent resetting user selection)
+  const roundInitializedRef = useRef(false)
+
   useEffect(() => {
-    if (roundsScrollRef.current) {
-      const container = roundsScrollRef.current
-      const selectedButton = container.querySelector(`[data-round="${selectedRound}"]`) as HTMLElement
+    // Skip if already centered or still loading
+    if (initialRoundCenteredRef.current || loading || matches.length === 0) return
 
-      if (selectedButton) {
-        const containerCenter = container.offsetWidth / 2
-        const buttonCenter = selectedButton.offsetWidth / 2
-        const scrollLeft = selectedButton.offsetLeft - containerCenter + buttonCenter
+    // Only center if selectedRound changed from the default (1) to something else
+    // OR if it stayed at 1 but matches are loaded (meaning 1 is the real value)
+    const roundWasUpdated = prevSelectedRoundRef.current !== selectedRound || matches.length > 0
+    prevSelectedRoundRef.current = selectedRound
 
-        container.scrollTo({ left: scrollLeft, behavior: 'smooth' })
+    if (!roundWasUpdated) return
+
+    const centerSelectedRound = () => {
+      if (roundsScrollRef.current) {
+        const container = roundsScrollRef.current
+        const selectedButton = container.querySelector(`[data-round="${selectedRound}"]`) as HTMLElement
+
+        if (selectedButton) {
+          const containerCenter = container.offsetWidth / 2
+          const buttonCenter = selectedButton.offsetWidth / 2
+          const scrollLeft = selectedButton.offsetLeft - containerCenter + buttonCenter
+
+          container.scrollTo({ left: scrollLeft, behavior: 'instant' })
+          initialRoundCenteredRef.current = true
+        }
       }
     }
-  }, [selectedRound])
+
+    // Delay to ensure DOM and round selection are ready
+    const timer = setTimeout(centerSelectedRound, 200)
+    return () => clearTimeout(timer)
+  }, [selectedRound, loading, matches.length])
 
   // useLayoutEffect runs after DOM updates but before paint
   // We use a dedicated anchor element to calculate precise scroll position, bypassing sticky/offset complexities
   const scrollAnchorRef = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
+    // Skip if we have deep link params (let the deep link handler manage scroll)
+    if (hasDeepLink && !deepLinkHandledRef.current) return
+
     if (scrollAnchorRef.current) {
       if (!isBracketFormat) {
         // Get absolute position of the anchor on the page
@@ -218,12 +251,26 @@ export function TournamentDetailPage() {
         }
       }
     }
-  }, [mobileTab, isBracketFormat])
+  }, [mobileTab, isBracketFormat, hasDeepLink])
 
-  // Initialize selectedRound to the first round with unplayed matches
+  // Initialize selectedRound from URL params or first round with unplayed matches
+  // This should only run ONCE when matches are first loaded
   useEffect(() => {
-    if (matches.length > 0 && !isBracketFormat) {
-      // Find first round with at least one unplayed match
+    // Skip if already initialized (user has manually selected a round)
+    if (roundInitializedRef.current) return
+
+    if (matches.length > 0 && !isBracketFormat && !deepLinkHandledRef.current) {
+      // Priority 1: URL param
+      if (urlRound) {
+        const roundNum = parseInt(urlRound, 10)
+        if (!isNaN(roundNum) && rounds.includes(roundNum)) {
+          setSelectedRound(roundNum)
+          roundInitializedRef.current = true
+          return
+        }
+      }
+
+      // Priority 2: Find first round with at least one unplayed match
       const activeRound = rounds.find(r =>
         matchesByRound[r]?.some(m => m.result === null)
       )
@@ -234,8 +281,47 @@ export function TournamentDetailPage() {
         // If all played, show the last round
         setSelectedRound(maxRound || 1)
       }
+
+      // Mark as initialized to prevent future resets
+      roundInitializedRef.current = true
     }
-  }, [matches.length, isBracketFormat, maxRound]) // Only run on load/format change to avoid jumping while editing
+  }, [matches.length, isBracketFormat, maxRound, urlRound, rounds, matchesByRound])
+
+  // Handle deep link: scroll to specific match after round is set
+  useEffect(() => {
+    if (!hasDeepLink || deepLinkHandledRef.current || loading || matches.length === 0) return
+
+    // Poll for the element instead of fixed delay (faster response)
+    let attempts = 0
+    const maxAttempts = 20
+    const pollInterval = 50 // Check every 50ms
+
+    const checkAndScroll = () => {
+      attempts++
+      const matchElement = urlMatchId ? document.querySelector(`[data-match-id="${urlMatchId}"]`) : null
+
+      if (matchElement) {
+        matchElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        // Add highlight effect - ring directly on element
+        matchElement.classList.add('ring-2', 'ring-violet-500')
+        setTimeout(() => {
+          matchElement.classList.remove('ring-2', 'ring-violet-500')
+        }, 2000)
+        deepLinkHandledRef.current = true
+        setSearchParams({}, { replace: true })
+      } else if (attempts < maxAttempts) {
+        setTimeout(checkAndScroll, pollInterval)
+      } else {
+        // Timeout - mark as handled anyway
+        deepLinkHandledRef.current = true
+        setSearchParams({}, { replace: true })
+      }
+    }
+
+    // Start polling after a minimal delay for initial render
+    const timer = setTimeout(checkAndScroll, 100)
+    return () => clearTimeout(timer)
+  }, [hasDeepLink, loading, matches.length, selectedRound, urlMatchId, setSearchParams])
 
   // Utiliser les équipes du tournoi (normalisées pour rétrocompatibilité)
   const teams = normalizeTeams(tournament?.teams as (string | { name: string; logo?: string })[])
@@ -1502,7 +1588,6 @@ export function TournamentDetailPage() {
                     </div>
 
                     {/* Round Selector (Scrollable: Desktop Only) */}
-                    {/* Round Selector (Scrollable: Desktop Only) */}
                     <div className="hidden min-[1320px]:flex relative z-30 items-center justify-between gap-4 max-w-2xl mx-auto">
                       <button
                         onClick={() => setSelectedRound(prev => Math.max(1, prev - 1))}
@@ -1514,7 +1599,7 @@ export function TournamentDetailPage() {
 
                       <div
                         ref={roundsScrollRef}
-                        className="flex overflow-x-auto gap-2 px-2 py-1 md:max-w-xl snap-x snap-mandatory scrollbar-hide mask-fade-sides"
+                        className="flex overflow-x-auto gap-2 px-2 py-1 md:max-w-xl snap-x snap-mandatory scrollbar-hide"
                       >
                         {Array.from({ length: maxRound }, (_, i) => i + 1).map((r) => (
                           <button
@@ -1594,18 +1679,19 @@ export function TournamentDetailPage() {
 
                       <div className="space-y-3">
                         {matchesByRound[selectedRound]?.map((match) => (
-                          <LeagueMatchRow
-                            key={match.id}
-                            match={match}
-                            prediction={predictionsByMatch[match.id]}
-                            isAdmin={isAdmin}
-                            teams={teams}
-                            tournamentStatus={tournament.status}
-                            onEdit={openEditMatch}
-                            onPredict={setPredictionMatch}
-                            onChangeFormat={handleChangeFormat}
-                            roundDate={tournament.round_dates?.[match.round.toString()]}
-                          />
+                          <div key={match.id} data-match-id={match.id} className="rounded-lg transition-all duration-300">
+                            <LeagueMatchRow
+                              match={match}
+                              prediction={predictionsByMatch[match.id]}
+                              isAdmin={isAdmin}
+                              teams={teams}
+                              tournamentStatus={tournament.status}
+                              onEdit={openEditMatch}
+                              onPredict={setPredictionMatch}
+                              onChangeFormat={handleChangeFormat}
+                              roundDate={tournament.round_dates?.[match.round.toString()]}
+                            />
+                          </div>
                         )) || (
                             <div className="text-center py-8 text-gray-500 italic">
                               Aucun match dans cette journée.

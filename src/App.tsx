@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './lib/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Layout } from './components/Layout'
+import { ScrollToTop } from './components/ScrollToTop'
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
@@ -19,6 +20,7 @@ import { NotFoundPage } from './pages/NotFoundPage'
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <ErrorBoundary>
         <AuthProvider>
           <Routes>

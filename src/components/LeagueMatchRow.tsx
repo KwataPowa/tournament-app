@@ -34,6 +34,7 @@ export function LeagueMatchRow({
     const isTBD = match.team_a === 'TBD' || match.team_b === 'TBD'
     const hasResult = match.result !== null
     const isBye = match.is_bye
+    const isByeName = match.team_a === 'BYE' || match.team_b === 'BYE'
 
     // Locking logic
     const now = new Date()
@@ -49,13 +50,13 @@ export function LeagueMatchRow({
     // Clickable for edit in draft, or prediction in active
     const isClickable = isAdmin
         ? true
-        : (!isBye && !isTBD && !isPredictionLocked && !!onPredict)
+        : (!isBye && !isByeName && !isTBD && !isPredictionLocked && !!onPredict)
 
     // Actions available
-    const canPredict = !isTBD && !isBye && !isPredictionLocked && onPredict
+    const canPredict = !isTBD && !isBye && !isByeName && !isPredictionLocked && onPredict
 
     const handleRowClick = () => {
-        if (isBye) return
+        if (isBye || isByeName) return
 
         // L'admin peut toujours éditer le match (équipes, format, résultat, etc.)
         if (isAdmin && onEdit) {
@@ -111,7 +112,7 @@ export function LeagueMatchRow({
     }
 
     return (
-<div
+        <div
             onClick={handleRowClick}
             className={`
         group relative flex flex-col w-full gap-4 p-4 rounded-lg border
@@ -229,7 +230,7 @@ export function LeagueMatchRow({
                     {!hasResult && !isTBD && !canPredict && (
                         <div className="flex items-center justify-center gap-2 text-gray-500 text-xs py-1">
                             <Lock className="w-3 h-3" />
-                            <span>{isStarted ? 'Verrouillé' : 'Bientôt disponible'}</span>
+                            <span>{(isByeName || isBye) ? 'Exempté' : (isStarted ? 'Verrouillé' : 'Bientôt disponible')}</span>
                         </div>
                     )}
                     {hasResult && !prediction && (

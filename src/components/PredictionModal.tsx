@@ -95,6 +95,11 @@ export function PredictionModal({
       return
     }
 
+    if (match.is_bye || match.team_a === 'BYE' || match.team_b === 'BYE') {
+      setError('Impossible de pronostiquer sur un match exempté.')
+      return
+    }
+
     if (!score) {
       setError('Sélectionne le score')
       return

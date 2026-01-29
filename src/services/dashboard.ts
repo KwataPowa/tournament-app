@@ -5,6 +5,7 @@ export type PendingPredictionMatch = Match & {
     tournament: {
         id: string
         name: string
+        teams: { name: string; logo?: string }[]
     }
 }
 
@@ -69,7 +70,7 @@ export async function getPendingPredictions(userId: string): Promise<PendingPred
         .from('matches')
         .select(`
       *,
-      tournament:tournaments(id, name)
+      tournament:tournaments(id, name, teams)
     `)
         .in('tournament_id', tournamentIds)
         .is('result', null) // Match non joué
@@ -77,6 +78,9 @@ export async function getPendingPredictions(userId: string): Promise<PendingPred
         .or(`start_time.is.null,start_time.gt.${now}`) // Pas commencé ou heure non définie
         .neq('team_a', 'TBD') // Pas de placeholder TBD
         .neq('team_b', 'TBD')
+        .neq('is_bye', true) // Pas de match exempté/bye
+        .neq('team_a', 'BYE')
+        .neq('team_b', 'BYE')
         .order('start_time', { ascending: true }) // Les plus proches d'abord
         .limit(20)
 
