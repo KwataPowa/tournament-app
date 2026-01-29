@@ -14,7 +14,7 @@ interface StageSeedingModalProps {
 export function StageSeedingModal({ stage, allTeams, onSave, onClose }: StageSeedingModalProps) {
     // Par défaut, sélectionner toutes les équipes (ou aucune si liste trop longue ?)
     const [selectedTeams, setSelectedTeams] = useState<string[]>(allTeams.map(t => t.name))
-    const [generationMode, setGenerationMode] = useState<'auto' | 'manual'>('auto')
+    const [generationMode, setGenerationMode] = useState<'auto' | 'manual'>('manual')
     const [loading, setLoading] = useState(false)
 
     // Prevent Body Scroll when modal is open

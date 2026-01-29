@@ -97,16 +97,25 @@ function TeamSelect({
   }, [isOpen])
 
   const selectedTeam = teams.find(t => t.name === value)
+  const isByeSelected = value === 'BYE'
 
   return (
     <div className="relative team-select-container">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-left flex items-center justify-between transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 hover:bg-white/10"
+        className={`w-full px-4 py-3 border rounded-xl text-left flex items-center justify-between transition-all duration-200 focus:outline-none hover:bg-white/10 ${isByeSelected
+          ? 'bg-emerald-500/10 border-emerald-500/30 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'
+          : 'bg-white/5 border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500'
+          }`}
       >
         <div className="flex items-center gap-2 overflow-hidden">
-          {selectedTeam ? (
+          {isByeSelected ? (
+            <>
+              <Trophy className="w-5 h-5 text-emerald-400" />
+              <span className="text-emerald-400 font-medium">Passage Auto</span>
+            </>
+          ) : selectedTeam ? (
             <>
               {selectedTeam.logo && (
                 <img
@@ -142,30 +151,46 @@ function TeamSelect({
             >
               {placeholder}
             </button>
-            {teams.map((team) => (
-              <button
-                key={team.name}
-                type="button"
-                onClick={() => {
-                  onChange(team.name)
-                  setIsOpen(false)
-                }}
-                className={`w-full px-3 py-2 rounded-lg flex items-center gap-3 transition-colors ${value === team.name ? 'bg-violet-500/20 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'
-                  }`}
-              >
-                {team.logo ? (
-                  <img src={team.logo} alt={team.name} className="w-6 h-6 object-contain" />
-                ) : (
-                  <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center text-[10px] font-bold">
-                    {team.name.charAt(0)}
+            {teams.map((team) => {
+              const isBye = team.name === 'BYE'
+              return (
+                <button
+                  key={team.name}
+                  type="button"
+                  onClick={() => {
+                    onChange(team.name)
+                    setIsOpen(false)
+                  }}
+                  className={`w-full px-3 py-2 rounded-lg flex items-center gap-3 transition-colors ${value === team.name
+                    ? isBye
+                      ? 'bg-emerald-500/20 text-emerald-400'
+                      : 'bg-violet-500/20 text-white'
+                    : isBye
+                      ? 'text-emerald-400 hover:bg-emerald-500/10'
+                      : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                    }`}
+                >
+                  {isBye ? (
+                    <div className="w-6 h-6 rounded bg-emerald-500/20 flex items-center justify-center text-sm">
+                      <Trophy className="w-4 h-4 text-emerald-400" />
+                    </div>
+                  ) : team.logo ? (
+                    <img src={team.logo} alt={team.name} className="w-6 h-6 object-contain" />
+                  ) : (
+                    <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center text-[10px] font-bold">
+                      {team.name.charAt(0)}
+                    </div>
+                  )}
+                  <div className="flex flex-col items-start">
+                    <span className="truncate">{isBye ? 'Passage Auto' : team.name}</span>
+                    {isBye && <span className="text-[10px] text-emerald-500/70">Avance directement</span>}
                   </div>
-                )}
-                <span className="truncate">{team.name}</span>
-                {value === team.name && (
-                  <span className="ml-auto text-violet-400">✓</span>
-                )}
-              </button>
-            ))}
+                  {value === team.name && (
+                    <span className={`ml-auto ${isBye ? 'text-emerald-400' : 'text-violet-400'}`}>✓</span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}

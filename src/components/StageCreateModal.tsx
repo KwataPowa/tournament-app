@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Trophy, List, GitCommit, Plus } from 'lucide-react'
+import { X, Trophy, List, GitCommit, Plus, ChevronUp, ChevronDown } from 'lucide-react'
 import { Button } from './ui/Button'
-import type { TournamentFormat } from '../types'
+import type { TournamentFormat, ScoringRules } from '../types'
 
 interface StageCreateModalProps {
     onSave: (name: string, type: TournamentFormat, rules: { correct_winner_points: number, exact_score_bonus: number }) => Promise<void>
     onClose: () => void
+    defaultRules?: ScoringRules
 }
 
-export function StageCreateModal({ onSave, onClose }: StageCreateModalProps) {
+export function StageCreateModal({ onSave, onClose, defaultRules }: StageCreateModalProps) {
     const [name, setName] = useState('')
     const [type, setType] = useState<TournamentFormat>('league')
-    const [rules, setRules] = useState({ correct_winner_points: 3, exact_score_bonus: 1 })
+    const [rules, setRules] = useState({
+        correct_winner_points: defaultRules?.correct_winner_points ?? 3,
+        exact_score_bonus: defaultRules?.exact_score_bonus ?? 1
+    })
     const [loading, setLoading] = useState(false)
 
     // Prevent Body Scroll when modal is open
@@ -171,28 +175,62 @@ export function StageCreateModal({ onSave, onClose }: StageCreateModalProps) {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Bon vainqueur</label>
-                                            <div className="relative group">
+                                            <div className="relative">
                                                 <input
                                                     type="number"
                                                     min="0"
                                                     value={rules.correct_winner_points}
                                                     onChange={(e) => setRules({ ...rules, correct_winner_points: parseInt(e.target.value) || 0 })}
-                                                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-center font-mono text-lg focus:border-violet-500/50 outline-none transition-all group-hover:border-white/20"
+                                                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 pr-10 text-violet-400 text-center font-mono text-lg font-bold focus:border-violet-500/50 outline-none transition-all hover:border-white/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                 />
-                                                <span className="absolute right-4 top-3.5 text-gray-600 text-xs font-medium">PTS</span>
+                                                <div className="absolute right-0 top-0 bottom-0 flex flex-col border-l border-white/10">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setRules(prev => ({ ...prev, correct_winner_points: prev.correct_winner_points + 1 }))}
+                                                        className="flex-1 px-2.5 hover:bg-white/10 text-gray-400 hover:text-violet-400 transition-colors rounded-tr-xl flex items-center justify-center"
+                                                        tabIndex={-1}
+                                                    >
+                                                        <ChevronUp className="w-3 h-3" />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setRules(prev => ({ ...prev, correct_winner_points: Math.max(0, prev.correct_winner_points - 1) }))}
+                                                        className="flex-1 px-2.5 hover:bg-white/10 text-gray-400 hover:text-violet-400 transition-colors border-t border-white/10 rounded-br-xl flex items-center justify-center"
+                                                        tabIndex={-1}
+                                                    >
+                                                        <ChevronDown className="w-3 h-3" />
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Score exact (Bonus)</label>
-                                            <div className="relative group">
+                                            <div className="relative">
                                                 <input
                                                     type="number"
                                                     min="0"
                                                     value={rules.exact_score_bonus}
                                                     onChange={(e) => setRules({ ...rules, exact_score_bonus: parseInt(e.target.value) || 0 })}
-                                                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-center font-mono text-lg focus:border-cyan-500/50 outline-none transition-all group-hover:border-white/20"
+                                                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 pr-10 text-cyan-400 text-center font-mono text-lg font-bold focus:border-cyan-500/50 outline-none transition-all hover:border-white/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                 />
-                                                <span className="absolute right-4 top-3.5 text-gray-600 text-xs font-medium">PTS</span>
+                                                <div className="absolute right-0 top-0 bottom-0 flex flex-col border-l border-white/10">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setRules(prev => ({ ...prev, exact_score_bonus: prev.exact_score_bonus + 1 }))}
+                                                        className="flex-1 px-2.5 hover:bg-white/10 text-gray-400 hover:text-cyan-400 transition-colors rounded-tr-xl flex items-center justify-center"
+                                                        tabIndex={-1}
+                                                    >
+                                                        <ChevronUp className="w-3 h-3" />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setRules(prev => ({ ...prev, exact_score_bonus: Math.max(0, prev.exact_score_bonus - 1) }))}
+                                                        className="flex-1 px-2.5 hover:bg-white/10 text-gray-400 hover:text-cyan-400 transition-colors border-t border-white/10 rounded-br-xl flex items-center justify-center"
+                                                        tabIndex={-1}
+                                                    >
+                                                        <ChevronDown className="w-3 h-3" />
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

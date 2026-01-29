@@ -39,6 +39,8 @@ import {
   Edit2,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   List,
   GitMerge
 } from 'lucide-react'
@@ -57,6 +59,16 @@ export function TournamentDetailPage() {
   // Stages state
   const [stages, setStages] = useState<Stage[]>([])
   const [activeStageId, setActiveStageId] = useState<string | null>(null)
+
+  // Invitation copy state
+  const [isCopied, setIsCopied] = useState(false)
+
+  const handleCopyInvite = () => {
+    if (!tournament) return
+    navigator.clipboard.writeText(tournament.invite_code)
+    setIsCopied(true)
+    setTimeout(() => setIsCopied(false), 2000)
+  }
 
   const activeStage = useMemo(() =>
     stages.find(s => s.id === activeStageId) || stages[0] || null
@@ -228,6 +240,36 @@ export function TournamentDetailPage() {
   // Utiliser les équipes du tournoi (normalisées pour rétrocompatibilité)
   const teams = normalizeTeams(tournament?.teams as (string | { name: string; logo?: string })[])
 
+  // Équipes présentes dans les matchs de la phase active (pour les brackets multi-phases)
+  const stageTeams = useMemo(() => {
+    if (!activeStage) return teams
+
+    // 1. D'abord vérifier si des équipes sont sélectionnées dans les settings de la phase
+    const selectedTeamsFromSettings = activeStage.settings?.selected_teams as string[] | undefined
+    if (selectedTeamsFromSettings && selectedTeamsFromSettings.length > 0) {
+      return teams.filter(t => selectedTeamsFromSettings.includes(t.name))
+    }
+
+    // 2. Sinon, extraire les équipes des matchs de la phase
+    if (stageMatches.length === 0) return teams
+
+    const teamNamesInStage = new Set<string>()
+    stageMatches.forEach(m => {
+      if (m.team_a && m.team_a !== 'TBD' && m.team_a !== 'BYE') {
+        teamNamesInStage.add(m.team_a)
+      }
+      if (m.team_b && m.team_b !== 'TBD' && m.team_b !== 'BYE') {
+        teamNamesInStage.add(m.team_b)
+      }
+    })
+
+    // Si aucune équipe trouvée dans les matchs, retourner toutes les équipes (phase vide)
+    if (teamNamesInStage.size === 0) return teams
+
+    // Retourner les équipes du tournoi qui sont présentes dans cette phase
+    return teams.filter(t => teamNamesInStage.has(t.name))
+  }, [activeStage, stageMatches, teams])
+
   const currentMatches = matches.length
 
   // Bracket: Vérifie si on peut éditer les équipes pour un match donné (logique phase-par-phase)
@@ -291,9 +333,9 @@ export function TournamentDetailPage() {
   const getAvailableTeamsForRound = (match: Match | null): typeof teams => {
     if (!match) return []
 
-    // 1. Initial Round (Winners Bracket Round 1): toutes les équipes du tournoi
+    // 1. Initial Round (Winners Bracket Round 1): équipes de cette phase uniquement
     if (match.round === 1 && match.bracket_side === 'winners') {
-      return teams
+      return stageTeams
     }
 
     // 2. Feeder Logic (Pour tous les autres rounds)
@@ -348,7 +390,7 @@ export function TournamentDetailPage() {
     const currentTeam = slot === 'team_a' ? match.team_a : match.team_b
     const otherSlotTeam = slot === 'team_a' ? match.team_b : match.team_a
 
-    return baseTeams.filter(t => {
+    const filteredTeams = baseTeams.filter(t => {
       // Toujours garder l'équipe actuellement assignée à ce slot
       if (t.name === currentTeam && currentTeam !== 'TBD') return true
       // Exclure l'équipe de l'autre slot de ce match
@@ -356,6 +398,51 @@ export function TournamentDetailPage() {
       // Exclure les équipes déjà assignées ailleurs dans ce round
       return !assignedInRound.includes(t.name)
     })
+
+    // Pour le Round 1 du Winners Bracket, ajouter BYE comme option
+    // Permet de configurer les passages automatiques (ex: bracket de 8 avec 6 équipes)
+    if (match.round === 1 && match.bracket_side === 'winners') {
+      // Calculer le nombre de BYE autorisés
+      const numTeams = stageTeams.length
+      const bracketSize = nextPowerOf2(numTeams)
+      const maxByes = bracketSize - numTeams // Ex: 8 - 6 = 2 BYEs max
+
+      // Compter les BYE déjà assignés dans ce round (excluant le slot courant)
+      const round1Matches = stageMatches.filter(
+        m => m.round === 1 && m.bracket_side === 'winners'
+      )
+      let currentByeCount = 0
+      round1Matches.forEach(m => {
+        // Ne pas compter le BYE du slot qu'on est en train d'éditer
+        if (m.id === match.id) {
+          // Seulement compter le BYE de l'autre slot
+          if (slot === 'team_a' && m.team_b === 'BYE') currentByeCount++
+          if (slot === 'team_b' && m.team_a === 'BYE') currentByeCount++
+        } else {
+          if (m.team_a === 'BYE') currentByeCount++
+          if (m.team_b === 'BYE') currentByeCount++
+        }
+      })
+
+      // Ne pas ajouter BYE si:
+      // - L'autre slot a déjà BYE
+      // - Limite de BYE atteinte
+      // - Ce slot a déjà BYE (il sera dans filteredTeams via currentTeam)
+      const hasByeInOtherSlot = otherSlotTeam === 'BYE'
+      const byeLimitReached = currentByeCount >= maxByes
+      const currentSlotHasBye = currentTeam === 'BYE'
+
+      if (!hasByeInOtherSlot && !byeLimitReached && !currentSlotHasBye && !filteredTeams.some(t => t.name === 'BYE')) {
+        return [...filteredTeams, { name: 'BYE' }]
+      }
+
+      // Si le slot courant a déjà BYE, s'assurer qu'il reste dans la liste
+      if (currentSlotHasBye && !filteredTeams.some(t => t.name === 'BYE')) {
+        return [...filteredTeams, { name: 'BYE' }]
+      }
+    }
+
+    return filteredTeams
   }
 
   useEffect(() => {
@@ -516,15 +603,36 @@ export function TournamentDetailPage() {
   }
 
   const handleDeleteStage = async (stageId: string) => {
-    await deleteStage(stageId)
-    // Remove from state
-    const remaining = stages.filter(s => s.id !== stageId)
-    setStages(remaining)
-    // If active was deleted, switch to first available
-    if (activeStageId === stageId) {
-      setActiveStageId(remaining.length > 0 ? remaining[0].id : null)
+    // Cas spécial: Dernière phase -> Suppression du tournoi
+    if (stages.length <= 1) {
+      if (window.confirm("Attention : Cette phase est la seule du tournoi. Sa suppression entraînera la suppression définitive du tournoi entier. Voulez-vous continuer ?")) {
+        setActionLoading(true)
+        try {
+          if (tournament) await deleteTournament(tournament.id)
+          navigate('/tournaments')
+        } catch (err) {
+          alert(err instanceof Error ? err.message : 'Erreur lors de la suppression du tournoi')
+          setActionLoading(false)
+        }
+      }
+      return
     }
-    setIsEditingStageSettings(false)
+
+    // Suppression classique d'une phase
+    try {
+      await deleteStage(stageId)
+      // Remove from state
+      const remaining = stages.filter(s => s.id !== stageId)
+      setStages(remaining)
+      // If active was deleted, switch to first available
+      if (activeStageId === stageId) {
+        setActiveStageId(remaining.length > 0 ? remaining[0].id : null)
+      }
+      setIsEditingStageSettings(false)
+    } catch (err) {
+      console.error("Erreur suppression phase:", err)
+      alert("Erreur lors de la suppression de la phase")
+    }
   }
 
   const handleSeeding = async (selectedTeams: { name: string, logo?: string }[], generationMode: 'auto' | 'manual') => {
@@ -532,6 +640,15 @@ export function TournamentDetailPage() {
     setActionLoading(true)
     try {
       const teamNames = selectedTeams.map(t => t.name)
+
+      // Sauvegarder les équipes sélectionnées dans les settings de la phase
+      const updatedStage = await updateStage(activeStage.id, {
+        settings: {
+          ...activeStage.settings,
+          selected_teams: teamNames
+        }
+      })
+      setStages(prev => prev.map(s => s.id === activeStage.id ? updatedStage : s))
 
       // 1. Bracket Generation
       if (activeStage.type === 'single_elimination' || activeStage.type === 'double_elimination') {
@@ -794,7 +911,6 @@ export function TournamentDetailPage() {
   const playedMatches = matches.filter((m) => m.result !== null).length
 
   // Effective Rules Calculation
-  const hasStageRules = activeStage?.scoring_rules != null
   const effectiveRules = activeStage?.scoring_rules || tournament.scoring_rules
 
   return (
@@ -884,15 +1000,7 @@ export function TournamentDetailPage() {
                   <span className="text-xs font-medium hidden sm:inline">Phase</span>
                 </button>
 
-                {activeStage && (
-                  <button
-                    onClick={() => setIsEditingStageSettings(true)}
-                    className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all"
-                    title="Paramètres de la phase"
-                  >
-                    <Settings className="w-4 h-4" />
-                  </button>
-                )}
+
               </>
             )}
           </div>
@@ -948,25 +1056,34 @@ export function TournamentDetailPage() {
         Rules | Invite | Admin/Status
         =======================================================================
       */}
+      {/* 
+        =======================================================================
+        UNIFIED DASHBOARD BAR (Shared across all formats)
+        Rules | Invite | Admin/Status
+        =======================================================================
+      */}
       <div className={`grid grid-cols-1 min-[1320px]:grid-cols-2 lg:grid-cols-3 gap-4 ${mobileTab === 'infos' ? 'block' : 'hidden min-[1320px]:grid'}`}>
         {/* Card 1: Règles */}
         <Card className={`flex-1 ${isEditingPoints ? 'border-violet-500/50 bg-violet-500/5' : ''}`}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-              <ScrollText className="w-4 h-4 text-gray-400" /> Règles
+              <ScrollText className="w-4 h-4 text-gray-400" /> {activeStage ? "Règle de la phase" : "Règles"}
             </h2>
             {isAdmin && !isEditingPoints && (
               <button
                 onClick={() => {
-                  if (hasStageRules) {
-                    alert("Cette phase a ses propres règles. Modifiez-les via les paramètres de la phase (roue dentée).")
-                    return
+                  if (activeStage) {
+                    // Edit stage rules
+                    setPointsForm(activeStage.scoring_rules || tournament.scoring_rules)
+                    setIsEditingPoints(true)
+                  } else {
+                    // Edit tournament rules
+                    setPointsForm(tournament.scoring_rules)
+                    setIsEditingPoints(true)
                   }
-                  setPointsForm(tournament.scoring_rules)
-                  setIsEditingPoints(true)
                 }}
-                className={`transition-colors p-1 ${hasStageRules ? 'text-gray-600 cursor-not-allowed' : 'text-blue-400 hover:text-blue-300'}`}
-                title={hasStageRules ? "Règles gérées par la phase" : "Modifier les points globaux"}
+                className={`transition-colors p-1 text-blue-400 hover:text-blue-300`}
+                title={activeStage ? "Modifier les règles de la phase" : "Modifier les points globaux"}
               >
                 <Edit2 className="w-3.5 h-3.5" />
               </button>
@@ -974,7 +1091,26 @@ export function TournamentDetailPage() {
             {isAdmin && isEditingPoints && (
               <div className="flex items-center gap-1">
                 <button
-                  onClick={handleSavePoints}
+                  onClick={async () => {
+                    if (activeStage) {
+                      // Save Stage Rules
+                      setActionLoading(true)
+                      try {
+                        const updated = await updateStage(activeStage.id, { scoring_rules: pointsForm })
+                        setStages(prev => prev.map(s => s.id === activeStage.id ? updated : s))
+                        await recalculateTournamentPoints(tournament.id)
+                        loadLeaderboard()
+                        setIsEditingPoints(false)
+                      } catch (err) {
+                        alert("Erreur sauvegarde règles phase")
+                      } finally {
+                        setActionLoading(false)
+                      }
+                    } else {
+                      // Save Tournament Rules
+                      handleSavePoints()
+                    }
+                  }}
                   disabled={actionLoading}
                   className="p-1 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-colors"
                   title="Sauvegarder"
@@ -993,54 +1129,91 @@ export function TournamentDetailPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-4 text-sm h-9">
+          <div className="flex items-center gap-4 text-sm">
             {isEditingPoints ? (
               <>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-400">Vainqueur:</span>
-                  <input
-                    type="number"
-                    value={pointsForm.correct_winner_points}
-                    onChange={(e) => setPointsForm(prev => ({ ...prev, correct_winner_points: parseInt(e.target.value) || 0 }))}
-                    className="w-12 bg-black/30 border border-white/10 rounded px-1 py-0.5 text-center font-mono text-violet-400 font-bold focus:border-violet-500/50 outline-none"
-                    autoFocus
-                  />
+                  <span className="text-gray-400 text-xs">Vainqueur:</span>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={pointsForm.correct_winner_points}
+                      onChange={(e) => setPointsForm(prev => ({ ...prev, correct_winner_points: parseInt(e.target.value) || 0 }))}
+                      className="w-16 bg-black/30 border border-white/10 rounded-xl px-2 py-2.5 pr-7 text-center font-mono text-violet-400 text-lg font-bold focus:border-violet-500/50 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      autoFocus
+                    />
+                    <div className="absolute right-0 top-0 bottom-0 flex flex-col border-l border-white/10">
+                      <button
+                        type="button"
+                        onClick={() => setPointsForm(prev => ({ ...prev, correct_winner_points: prev.correct_winner_points + 1 }))}
+                        className="flex-1 px-2 hover:bg-white/10 text-gray-400 hover:text-violet-400 transition-colors rounded-tr-xl flex items-center justify-center"
+                        tabIndex={-1}
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPointsForm(prev => ({ ...prev, correct_winner_points: Math.max(0, prev.correct_winner_points - 1) }))}
+                        className="flex-1 px-2 hover:bg-white/10 text-gray-400 hover:text-violet-400 transition-colors border-t border-white/10 rounded-br-xl flex items-center justify-center"
+                        tabIndex={-1}
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-400">Score Exact:</span>
-                  <input
-                    type="number"
-                    value={pointsForm.exact_score_bonus}
-                    onChange={(e) => setPointsForm(prev => ({ ...prev, exact_score_bonus: parseInt(e.target.value) || 0 }))}
-                    className="w-12 bg-black/30 border border-white/10 rounded px-1 py-0.5 text-center font-mono text-cyan-400 font-bold focus:border-cyan-500/50 outline-none"
-                  />
+                  <span className="text-gray-400 text-xs">Score Exact:</span>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={pointsForm.exact_score_bonus}
+                      onChange={(e) => setPointsForm(prev => ({ ...prev, exact_score_bonus: parseInt(e.target.value) || 0 }))}
+                      className="w-16 bg-black/30 border border-white/10 rounded-xl px-2 py-2.5 pr-7 text-center font-mono text-cyan-400 text-lg font-bold focus:border-cyan-500/50 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <div className="absolute right-0 top-0 bottom-0 flex flex-col border-l border-white/10">
+                      <button
+                        type="button"
+                        onClick={() => setPointsForm(prev => ({ ...prev, exact_score_bonus: prev.exact_score_bonus + 1 }))}
+                        className="flex-1 px-2 hover:bg-white/10 text-gray-400 hover:text-cyan-400 transition-colors rounded-tr-xl flex items-center justify-center"
+                        tabIndex={-1}
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPointsForm(prev => ({ ...prev, exact_score_bonus: Math.max(0, prev.exact_score_bonus - 1) }))}
+                        className="flex-1 px-2 hover:bg-white/10 text-gray-400 hover:text-cyan-400 transition-colors border-t border-white/10 rounded-br-xl flex items-center justify-center"
+                        tabIndex={-1}
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </>
             ) : (
               <>
                 <div className="flex items-center gap-2">
                   <span className="text-gray-400">Vainqueur:</span>
-                  <span className={`font-mono font-bold ${hasStageRules ? 'text-amber-400' : 'text-violet-400'}`}>
+                  <span className="font-mono font-bold text-violet-400">
                     {effectiveRules.correct_winner_points} pts
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-gray-400">Score Exact:</span>
-                  <span className={`font-mono font-bold ${hasStageRules ? 'text-amber-400' : 'text-cyan-400'}`}>
+                  <span className="font-mono font-bold text-cyan-400">
                     {effectiveRules.exact_score_bonus} pts
                   </span>
                 </div>
-                {hasStageRules && (
-                  <span className="text-[10px] uppercase font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 ml-auto">
-                    Phase
-                  </span>
-                )}
               </>
             )}
           </div>
         </Card>
 
-        {/* Card 2: Invitation */}
+
+
+        {/* Card 2: Invitation (Or Middle Spacer if needed) */}
         <Card className="flex-1">
           <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
             <LinkIcon className="w-4 h-4 text-gray-400" /> Invitation
@@ -1052,76 +1225,126 @@ export function TournamentDetailPage() {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => navigator.clipboard.writeText(tournament.invite_code)}
-              title="Copier"
+              onClick={handleCopyInvite}
+              title={isCopied ? "Copié !" : "Copier"}
+              className={isCopied ? "text-green-400 bg-green-400/10 border-green-400/20" : ""}
             >
-              <Copy className="w-4 h-4" />
+              {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             </Button>
           </div>
         </Card>
 
-        {isAdmin ? (
+        {/* Card 3: Administration OR Phase Settings */}
+        {activeStage ? (
+          // MODE PHASE: "Paramètre de la phase"
           <Card className="border-violet-500/20 flex-1">
             <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-              <Settings className="w-4 h-4 text-violet-400" /> Administration
+              <Settings className="w-4 h-4 text-gray-400" /> Paramètre de la phase
             </h2>
             <div className="flex items-center gap-3">
               <div className="text-sm text-gray-400 flex-1 flex flex-col items-center justify-center">
-                {tournament.status === 'draft' && (
-                  <span className="flex items-center gap-2 text-amber-400">
-                    <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    Brouillon
-                  </span>
-                )}
-                {tournament.status === 'active' && (
-                  <span className="flex items-center gap-2 whitespace-nowrap">
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    En cours ({playedMatches}/{currentMatches})
-                  </span>
-                )}
-                {tournament.status === 'completed' && (
-                  <span className="flex items-center gap-2 text-blue-400">
-                    <Trophy className="w-3 h-3" /> Terminé
-                  </span>
-                )}
+                {(() => {
+                  const total = stageMatches.length
+                  const played = stageMatches.filter(m => m.result !== null).length
+                  const isCompleted = total > 0 && played === total
+
+                  return isCompleted ? (
+                    <span className="flex items-center gap-2 text-blue-400">
+                      <Trophy className="w-3 h-3" /> Terminé ({played}/{total})
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2 whitespace-nowrap">
+                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      En cours ({played}/{total})
+                    </span>
+                  )
+                })()}
               </div>
 
-              {tournament.status === 'draft' && (
+              {isAdmin && (
                 <Button
-                  onClick={handleActivateTournament}
+                  onClick={() => {
+                    if (window.confirm(`Supprimer la phase "${activeStage.name}" ?`)) {
+                      handleDeleteStage(activeStage.id)
+                    }
+                  }}
                   disabled={actionLoading}
-                  variant="primary"
+                  variant="danger"
                   size="sm"
-                  title="Lancer le tournoi"
+                  title="Supprimer la phase"
                   className="flex-1"
-                  icon={<Play className="w-4 h-4" />}
+                  icon={<Trash2 className="w-4 h-4" />}
                 >
-                  Lancer
+                  Supprimer
                 </Button>
               )}
-
-              <Button
-                onClick={handleDeleteTournament}
-                disabled={actionLoading}
-                variant="danger"
-                size="sm"
-                title="Supprimer le tournoi"
-                className="flex-1"
-                icon={<Trash2 className="w-4 h-4" />}
-              >
-                Supprimer
-              </Button>
             </div>
           </Card>
         ) : (
-          <Card className="flex-1 border-white/5 opacity-80">
-            <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-              <Trophy className="w-4 h-4 text-gray-400" /> Mon statut
-            </h2>
-            <div className="text-sm text-gray-400">
-              {predictions.length} pronostic(s) réalisé(s)
-            </div>
-          </Card>
+          // MODE TOURNOI: "Administration"
+          isAdmin ? (
+            <Card className="border-violet-500/20 flex-1">
+              <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                <Settings className="w-4 h-4 text-violet-400" /> Administration
+              </h2>
+              <div className="flex items-center gap-3">
+                <div className="text-sm text-gray-400 flex-1 flex flex-col items-center justify-center">
+                  {tournament.status === 'draft' && (
+                    <span className="flex items-center gap-2 text-amber-400">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      Brouillon
+                    </span>
+                  )}
+                  {tournament.status === 'active' && (
+                    <span className="flex items-center gap-2 whitespace-nowrap">
+                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      En cours ({playedMatches}/{currentMatches})
+                    </span>
+                  )}
+                  {tournament.status === 'completed' && (
+                    <span className="flex items-center gap-2 text-blue-400">
+                      <Trophy className="w-3 h-3" /> Terminé
+                    </span>
+                  )}
+                </div>
+
+                {tournament.status === 'draft' && (
+                  <Button
+                    onClick={handleActivateTournament}
+                    disabled={actionLoading}
+                    variant="primary"
+                    size="sm"
+                    title="Lancer le tournoi"
+                    className="flex-1"
+                    icon={<Play className="w-4 h-4" />}
+                  >
+                    Lancer
+                  </Button>
+                )}
+
+                <Button
+                  onClick={handleDeleteTournament}
+                  disabled={actionLoading}
+                  variant="danger"
+                  size="sm"
+                  title="Supprimer le tournoi"
+                  className="flex-1"
+                  icon={<Trash2 className="w-4 h-4" />}
+                >
+                  Supprimer
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <Card className="flex-1 border-white/5 opacity-80">
+              <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-gray-400" /> Mon statut
+              </h2>
+              <div className="text-sm text-gray-400">
+                {predictions.length} pronostic(s) réalisé(s)
+              </div>
+            </Card>
+          )
         )}
       </div>
 
@@ -1444,6 +1667,11 @@ export function TournamentDetailPage() {
         <StageCreateModal
           onSave={handleCreateStage}
           onClose={() => setIsAddingStage(false)}
+          defaultRules={
+            stages.length > 0
+              ? stages[stages.length - 1].scoring_rules ?? undefined
+              : tournament?.scoring_rules ?? undefined
+          }
         />
       )}
 

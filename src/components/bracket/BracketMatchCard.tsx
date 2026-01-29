@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Match, Prediction, MatchFormat } from '../../types'
-import { Eye } from 'lucide-react'
+import { Eye, Trophy } from 'lucide-react'
 import { PredictionsListModal } from '../PredictionsListModal'
 
 type BracketMatchCardProps = {
@@ -127,7 +127,7 @@ export function BracketMatchCard({
               </span>
             </div>
           ) : (
-            isBye ? <span className="text-[9px] text-amber-500/50 font-bold tracking-wider">BYE</span> : <span className="text-[9px] text-white/10 font-mono">--/--</span>
+            isBye ? <span className="text-[9px] text-emerald-500/70 font-bold tracking-wider flex items-center gap-1"><Trophy className="w-3 h-3" /> Passage Auto</span> : <span className="text-[9px] text-white/10 font-mono">--/--</span>
           )}
         </div>
 
@@ -137,6 +137,7 @@ export function BracketMatchCard({
           className={`
           px-3 py-2.5 flex items-center justify-between gap-2 border-b border-white/5
           ${teamAWon ? 'bg-green-500/10' : ''}
+          ${match.team_a === 'BYE' ? 'bg-emerald-500/5 border-l-2 border-l-emerald-500/50' : ''}
         `}
         >
           <div className="flex items-center gap-2 overflow-hidden">
@@ -155,7 +156,7 @@ export function BracketMatchCard({
               ${teamBWon ? 'text-gray-500' : ''}
             `}
             >
-              {match.team_a === 'TBD' ? 'À définir' : match.team_a}
+              {match.team_a === 'TBD' ? 'À définir' : match.team_a === 'BYE' ? <span className="flex items-center gap-1.5 italic text-emerald-400/80"><Trophy className="w-3 h-3" /> Exempté</span> : match.team_a}
             </span>
           </div>
 
@@ -177,6 +178,7 @@ export function BracketMatchCard({
           className={`
           px-3 py-2.5 flex items-center justify-between gap-2 border-t border-transparent
           ${teamBWon ? 'bg-green-500/10' : ''}
+          ${match.team_b === 'BYE' ? 'bg-emerald-500/5 border-l-2 border-l-emerald-500/50' : ''}
         `}
         >
           <div className="flex items-center gap-2 overflow-hidden">
@@ -195,7 +197,7 @@ export function BracketMatchCard({
               ${teamAWon ? 'text-gray-500' : ''}
             `}
             >
-              {match.team_b === 'TBD' ? 'À définir' : match.team_b}
+              {match.team_b === 'TBD' ? 'À définir' : match.team_b === 'BYE' ? <span className="flex items-center gap-1.5 italic text-emerald-400/80"><Trophy className="w-3 h-3" /> Exempté</span> : match.team_b}
             </span>
           </div>
           {/* Score or Winner Indicator */}

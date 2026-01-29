@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import type { Match, Team } from '../types'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
+import { Trophy } from 'lucide-react'
 
 type TeamAssignModalProps = {
   match: Match
@@ -185,51 +186,70 @@ export function TeamAssignModal({
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
-                  {teamsToShow.map((team) => (
-                    <button
-                      key={team.name}
-                      type="button"
-                      onClick={() => handleSelectTeam(team.name)}
-                      className={`
-                        group relative p-3 rounded-xl text-left transition-all duration-300 overflow-hidden
-                        ${teamName === team.name
-                          ? 'bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 border-2 border-cyan-500 shadow-lg shadow-cyan-500/20'
-                          : 'bg-white/5 border-2 border-white/10 hover:border-white/20 hover:bg-white/10'
-                        }
-                      `}
-                    >
-                      {teamName === team.name && (
-                        <div className="absolute inset-0 bg-gradient-to-t from-cyan-500/10 to-transparent" />
-                      )}
-                      <div className="relative flex items-center gap-2">
-                        {team.logo ? (
-                          <img
-                            src={team.logo}
-                            alt={team.name}
-                            className="w-8 h-8 rounded-lg object-contain"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none'
-                            }}
-                          />
-                        ) : (
-                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500/30 to-cyan-500/30 flex items-center justify-center text-xs font-bold text-white/60">
-                            {team.name.slice(0, 2).toUpperCase()}
-                          </div>
+                  {teamsToShow.map((team) => {
+                    const isBye = team.name === 'BYE'
+                    return (
+                      <button
+                        key={team.name}
+                        type="button"
+                        onClick={() => handleSelectTeam(team.name)}
+                        className={`
+                          group relative p-3 rounded-xl text-left transition-all duration-300 overflow-hidden
+                          ${teamName === team.name
+                            ? isBye
+                              ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border-2 border-emerald-500 shadow-lg shadow-emerald-500/20'
+                              : 'bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 border-2 border-cyan-500 shadow-lg shadow-cyan-500/20'
+                            : isBye
+                              ? 'bg-emerald-500/5 border-2 border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/10'
+                              : 'bg-white/5 border-2 border-white/10 hover:border-white/20 hover:bg-white/10'
+                          }
+                        `}
+                      >
+                        {teamName === team.name && (
+                          <div className={`absolute inset-0 bg-gradient-to-t ${isBye ? 'from-emerald-500/10' : 'from-cyan-500/10'} to-transparent`} />
                         )}
-                        <span
-                          className={`
-                            text-sm font-medium truncate
-                            ${teamName === team.name ? 'text-cyan-400' : 'text-gray-300'}
-                          `}
-                        >
-                          {team.name}
-                        </span>
-                      </div>
-                      {teamName === team.name && (
-                        <span className="absolute top-2 right-2 text-cyan-400 text-sm">✓</span>
-                      )}
-                    </button>
-                  ))}
+                        <div className="relative flex items-center gap-2">
+                          {isBye ? (
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/40 to-green-500/40 flex items-center justify-center">
+                              <Trophy className="w-4 h-4 text-emerald-400" />
+                            </div>
+                          ) : team.logo ? (
+                            <img
+                              src={team.logo}
+                              alt={team.name}
+                              className="w-8 h-8 rounded-lg object-contain"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none'
+                              }}
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500/30 to-cyan-500/30 flex items-center justify-center text-xs font-bold text-white/60">
+                              {team.name.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="flex flex-col">
+                            <span
+                              className={`
+                                text-sm font-medium truncate
+                                ${teamName === team.name
+                                  ? isBye ? 'text-emerald-400' : 'text-cyan-400'
+                                  : isBye ? 'text-emerald-400' : 'text-gray-300'
+                                }
+                              `}
+                            >
+                              {isBye ? 'Passage Auto' : team.name}
+                            </span>
+                            {isBye && (
+                              <span className="text-[10px] text-emerald-500/70">Avance directement</span>
+                            )}
+                          </div>
+                        </div>
+                        {teamName === team.name && (
+                          <span className={`absolute top-2 right-2 text-sm ${isBye ? 'text-emerald-400' : 'text-cyan-400'}`}>✓</span>
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
               )}
             </div>
