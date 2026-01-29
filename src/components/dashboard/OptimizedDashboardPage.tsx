@@ -3,7 +3,7 @@ import { useAuthContext } from '../../lib/AuthContext'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 
 // Lazy load dashboard components for better performance
-const DashboardContent = lazy(() => import('./EnhancedDashboard').then(module => ({ default: module.EnhancedDashboard })))
+const DashboardContent = lazy(() => import('../../pages/DashboardPage').then(module => ({ default: module.DashboardPage })))
 
 // Enhanced loading skeleton
 function DashboardLoader() {
@@ -56,7 +56,7 @@ function PerformanceMonitor({ children }: { children: React.ReactNode }) {
     // Log performance metrics in development
     if (import.meta.env.DEV) {
       const startTime = performance.now()
-      
+
       return () => {
         const endTime = performance.now()
         console.log(`Dashboard render time: ${endTime - startTime}ms`)
