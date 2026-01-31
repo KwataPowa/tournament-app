@@ -9,6 +9,7 @@ type BracketRoundProps = {
   isAdmin: boolean
   tournamentStatus: 'draft' | 'active' | 'completed'
   totalRounds: number
+  bracketSide?: 'winners' | 'losers' | 'grand_final'
 
   onEnterResult?: (match: Match) => void
   onPredict?: (match: Match) => void
@@ -27,6 +28,7 @@ export function BracketRound({
   tournamentStatus,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   totalRounds: _totalRounds,
+  bracketSide,
 
   onEnterResult,
   onPredict,
@@ -44,12 +46,25 @@ export function BracketRound({
     ? customPaddingY
     : (CARD_HEIGHT + GAP_BASE) * (spacingFactor - 1) * 0.5
 
+  // Determine styling based on round type
+  const isFinal = roundName.toLowerCase().includes('finale')
+  const isGrandFinal = roundName.toLowerCase().includes('grande')
+
+  const getHeaderStyle = () => {
+    if (isGrandFinal) return 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+    if (isFinal) return 'bg-violet-500/10 border-violet-500/30 text-violet-400'
+    if (bracketSide === 'losers') return 'bg-red-500/5 border-red-500/20 text-red-400'
+    return 'bg-white/5 border-white/10 text-gray-300'
+  }
+
   return (
-    <div className="bracket-round flex flex-col min-w-[180px]">
+    <div className="bracket-round flex flex-col min-w-[200px]">
       {/* Round header */}
       <div className="mb-4 text-center">
-        <h3 className="text-sm font-medium text-gray-400">{roundName}</h3>
-        <p className="text-xs text-gray-600">
+        <div className={`inline-block px-4 py-1.5 rounded-lg border ${getHeaderStyle()}`}>
+          <h3 className="text-sm font-semibold">{roundName}</h3>
+        </div>
+        <p className="text-xs text-gray-500 mt-1.5">
           {matches.length} match{matches.length > 1 ? 's' : ''}
         </p>
       </div>

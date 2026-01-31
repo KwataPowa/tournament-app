@@ -89,23 +89,26 @@ export function BracketMatchCard({
   return (
     <div
       className={`
-        bracket-match relative rounded-lg border flex overflow-hidden
+        bracket-match relative rounded-xl border flex overflow-hidden
         transition-all duration-200 min-w-[200px] min-h-24
-        ${isBye ? 'border-dashed border-white/10 bg-white/[0.02]' : 'border-white/10 bg-white/5'}
-        ${isBye ? 'border-dashed border-white/10 bg-white/[0.02]' : 'border-white/5 bg-white/5'}
-        ${isClickable ? 'hover:border-violet-500/30 hover:bg-white/[0.07]' : ''}
-        ${hasResult ? 'border-green-500/20' : ''}
+        backdrop-blur-sm
+        ${isBye || isByeName
+          ? 'border-dashed border-white/10 bg-white/[0.02]'
+          : 'border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.02]'
+        }
+        ${isClickable ? 'hover:border-violet-500/40 hover:bg-white/[0.08] hover:shadow-lg hover:shadow-violet-500/5 cursor-pointer' : ''}
+        ${hasResult ? 'border-green-500/30 shadow-sm shadow-green-500/10' : ''}
       `}
       onClick={handleCardClick}
     >
       {/* LEFT SIDEBAR: Match Info & Format */}
-      <div className="w-9 bg-black/20 border-r border-white/5 flex flex-col items-center justify-between py-2">
-        <span className="text-[10px] text-gray-500 font-mono font-medium">
+      <div className="w-10 bg-black/30 border-r border-white/5 flex flex-col items-center justify-between py-2.5">
+        <span className="text-[10px] text-violet-400/80 font-mono font-bold">
           M{(match.bracket_position ?? 0) + 1}
         </span>
 
-        {/* Format badge (BO) - display only */}
-        <span className="text-[10px] font-bold font-mono text-gray-500">
+        {/* Format badge (BO) */}
+        <span className="text-[9px] font-bold font-mono text-gray-500 bg-white/5 px-1.5 py-0.5 rounded">
           {match.match_format || 'BO3'}
         </span>
       </div>
@@ -113,20 +116,24 @@ export function BracketMatchCard({
       {/* RIGHT CONTENT: Date & Teams */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Date Header */}
-        {/* Date Header: Always visible for consistent height */}
-        <div className="px-3 py-1 border-b border-white/5 flex items-center justify-center bg-white/[0.02] h-6">
+        <div className="px-3 py-1.5 border-b border-white/5 flex items-center justify-center bg-black/20 h-7">
           {match.start_time ? (
-            <div className="flex items-center gap-1.5">
-              <span className="text-[9px] text-cyan-400 font-medium whitespace-nowrap">
-                {new Date(match.start_time).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' })}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-cyan-400 font-medium">
+                {new Date(match.start_time).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
               </span>
-              <span className="text-[8px] text-cyan-600/50">•</span>
-              <span className="text-[9px] text-cyan-300/90 font-mono">
+              <span className="text-[10px] text-cyan-300 font-mono bg-cyan-500/10 px-1.5 py-0.5 rounded">
                 {new Date(match.start_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
           ) : (
-            isBye ? <span className="text-[9px] text-emerald-500/70 font-bold tracking-wider flex items-center gap-1"><Trophy className="w-3 h-3" /> Passage Auto</span> : <span className="text-[9px] text-white/10 font-mono">--/--</span>
+            isBye || isByeName ? (
+              <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1.5">
+                <Trophy className="w-3 h-3" /> Passage Auto
+              </span>
+            ) : (
+              <span className="text-[10px] text-gray-600 font-mono">À planifier</span>
+            )
           )}
         </div>
 
@@ -134,82 +141,88 @@ export function BracketMatchCard({
         {/* Team A */}
         <div
           className={`
-          px-3 py-2.5 flex items-center justify-between gap-2 border-b border-white/5
-          ${teamAWon ? 'bg-green-500/10' : ''}
-          ${match.team_a === 'BYE' ? 'bg-emerald-500/5 border-l-2 border-l-emerald-500/50' : ''}
-        `}
+            px-3 py-2 flex items-center justify-between gap-2
+            ${teamAWon ? 'bg-green-500/15' : 'hover:bg-white/[0.02]'}
+            ${match.team_a === 'BYE' ? 'bg-emerald-500/10' : ''}
+            transition-colors
+          `}
         >
-          <div className="flex items-center gap-2 overflow-hidden">
-            {teams?.find(t => t.name === match.team_a)?.logo && (
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            {teams?.find(t => t.name === match.team_a)?.logo ? (
               <img
                 src={teams.find(t => t.name === match.team_a)?.logo}
                 alt={match.team_a}
                 className="w-5 h-5 object-contain flex-shrink-0"
               />
-            )}
+            ) : match.team_a !== 'TBD' && match.team_a !== 'BYE' ? (
+              <div className="w-5 h-5 rounded bg-white/10 flex items-center justify-center flex-shrink-0">
+                <span className="text-[10px] font-bold text-gray-400">{match.team_a.charAt(0)}</span>
+              </div>
+            ) : null}
             <span
               className={`
-              text-sm font-medium truncate
-              ${match.team_a === 'TBD' ? 'text-gray-500 italic' : ''}
-              ${teamAWon ? 'text-green-400' : 'text-gray-300'}
-              ${teamBWon ? 'text-gray-500' : ''}
-            `}
+                text-sm font-medium truncate
+                ${match.team_a === 'TBD' ? 'text-gray-500 italic' : ''}
+                ${teamAWon ? 'text-green-400 font-semibold' : 'text-gray-200'}
+                ${teamBWon ? 'text-gray-500' : ''}
+                ${match.team_a === 'BYE' ? 'text-emerald-400 italic' : ''}
+              `}
             >
-              {match.team_a === 'TBD' ? 'À définir' : match.team_a === 'BYE' ? <span className="flex items-center gap-1.5 italic text-emerald-400/80"><Trophy className="w-3 h-3" /> Exempté</span> : match.team_a}
+              {match.team_a === 'TBD' ? 'À définir' : match.team_a === 'BYE' ? 'Exempté' : match.team_a}
             </span>
           </div>
 
-          {/* Score or Winner Indicator */}
-          <div className="flex items-center gap-2">
-            {hasResult && scoreA !== null && (
-              <span className={`font-mono font-bold text-sm ${teamAWon ? 'text-green-400' : 'text-gray-500'}`}>
-                {scoreA}
-              </span>
-            )}
-            {teamAWon && !hasResult && (
-              <span className="text-green-400 text-xs font-bold">W</span>
-            )}
-          </div>
+          {/* Score */}
+          {hasResult && scoreA !== null && (
+            <span className={`font-mono font-bold text-base ${teamAWon ? 'text-green-400' : 'text-gray-500'}`}>
+              {scoreA}
+            </span>
+          )}
         </div>
+
+        {/* Separator */}
+        <div className="h-px bg-white/5 mx-3" />
 
         {/* Team B */}
         <div
           className={`
-          px-3 py-2.5 flex items-center justify-between gap-2 border-t border-transparent
-          ${teamBWon ? 'bg-green-500/10' : ''}
-          ${match.team_b === 'BYE' ? 'bg-emerald-500/5 border-l-2 border-l-emerald-500/50' : ''}
-        `}
+            px-3 py-2 flex items-center justify-between gap-2
+            ${teamBWon ? 'bg-green-500/15' : 'hover:bg-white/[0.02]'}
+            ${match.team_b === 'BYE' ? 'bg-emerald-500/10' : ''}
+            transition-colors
+          `}
         >
-          <div className="flex items-center gap-2 overflow-hidden">
-            {teams?.find(t => t.name === match.team_b)?.logo && (
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            {teams?.find(t => t.name === match.team_b)?.logo ? (
               <img
                 src={teams.find(t => t.name === match.team_b)?.logo}
                 alt={match.team_b}
                 className="w-5 h-5 object-contain flex-shrink-0"
               />
-            )}
+            ) : match.team_b !== 'TBD' && match.team_b !== 'BYE' ? (
+              <div className="w-5 h-5 rounded bg-white/10 flex items-center justify-center flex-shrink-0">
+                <span className="text-[10px] font-bold text-gray-400">{match.team_b.charAt(0)}</span>
+              </div>
+            ) : null}
             <span
               className={`
-              text-sm font-medium truncate
-              ${match.team_b === 'TBD' ? 'text-gray-500 italic' : ''}
-              ${teamBWon ? 'text-green-400' : 'text-gray-300'}
-              ${teamAWon ? 'text-gray-500' : ''}
-            `}
+                text-sm font-medium truncate
+                ${match.team_b === 'TBD' ? 'text-gray-500 italic' : ''}
+                ${teamBWon ? 'text-green-400 font-semibold' : 'text-gray-200'}
+                ${teamAWon ? 'text-gray-500' : ''}
+                ${match.team_b === 'BYE' ? 'text-emerald-400 italic' : ''}
+              `}
             >
-              {match.team_b === 'TBD' ? 'À définir' : match.team_b === 'BYE' ? <span className="flex items-center gap-1.5 italic text-emerald-400/80"><Trophy className="w-3 h-3" /> Exempté</span> : match.team_b}
+              {match.team_b === 'TBD' ? 'À définir' : match.team_b === 'BYE' ? 'Exempté' : match.team_b}
             </span>
           </div>
-          {/* Score or Winner Indicator */}
-          <div className="flex items-center gap-2">
-            {hasResult && scoreB !== null && (
-              <span className={`font-mono font-bold text-sm ${teamBWon ? 'text-green-400' : 'text-gray-500'}`}>
-                {scoreB}
-              </span>
-            )}
-            {teamBWon && !hasResult && (
-              <span className="text-green-400 text-xs font-bold">W</span>
-            )}
-          </div>
+
+          {/* Score */}
+          {hasResult && scoreB !== null && (
+            <span className={`font-mono font-bold text-base ${teamBWon ? 'text-green-400' : 'text-gray-500'}`}>
+              {scoreB}
+            </span>
+          )}
         </div>
 
         {/* Action buttons (pronostic seulement, avant résultat) */}

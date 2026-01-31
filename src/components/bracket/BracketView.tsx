@@ -109,29 +109,22 @@ export function BracketView({
     })
 
     // Losers Bracket: 1, 1, 2, 2, 4, 4...
-    // Start with a factor that aligns visual height with the winners bracket
-    let wR1 = bracketData.winnersRounds.get(1)?.length || 0
-    let lR1 = bracketData.losersRounds.get(1)?.length || 0
-    currentFactor = (lR1 > 0 && wR1 > 0) ? Math.max(1, Math.floor(wR1 / lR1)) : 1
+    const wR1 = bracketData.winnersRounds.get(1)?.length || 0
+    const lR1 = bracketData.losersRounds.get(1)?.length || 0
+    currentFactor = lR1 > 0 && wR1 > 0 ? Math.max(1, Math.floor(wR1 / lR1)) : 1
 
-    // Specific Override for 8-team Double Elim (Winners 4 matches, Losers 2 matches)
-    // We want Losers R1 to look like slots 0 and 3 of a 4-slot grid.
     if (wR1 === 4 && lR1 === 2) {
-      // Round 1: Factor 3 (Gap of 3 units), Padding 0 (Top aligned)
       currentFactor = 3
     }
 
     const losersRounds = Array.from(bracketData.losersRounds.keys()).sort((a, b) => a - b)
 
     losersRounds.forEach((roundNum) => {
-      // Apply overrides if we are in the specific 4/2 scenario
       if (wR1 === 4 && lR1 === 2) {
         if (roundNum === 1) {
           paddingOverrides.set(`losers-${roundNum}`, 0)
         }
         if (roundNum === 2) {
-          // Round 2 (Quarters): Needs to be centered between the "Ghost" slots
-          // Factor 2 places them at 0.5 and 2.5
           currentFactor = 2
         }
       }
@@ -165,9 +158,6 @@ export function BracketView({
     }
     return null
   }, [bracketData])
-
-  // Check if rounds can be assigned
-
 
   // Mobile view with round navigation
   if (isMobile) {
@@ -219,6 +209,7 @@ export function BracketView({
                   isAdmin={isAdmin}
                   tournamentStatus={tournament.status}
                   totalRounds={bracketData.totalWinnersRounds}
+                  bracketSide="winners"
                   onEnterResult={onEnterResult}
                   onPredict={onPredict}
                   onChangeFormat={onChangeFormat}
@@ -239,6 +230,7 @@ export function BracketView({
                 isAdmin={isAdmin}
                 tournamentStatus={tournament.status}
                 totalRounds={1}
+                bracketSide="grand_final"
                 onEnterResult={onEnterResult}
                 onPredict={onPredict}
                 onChangeFormat={onChangeFormat}
@@ -273,6 +265,7 @@ export function BracketView({
                     isAdmin={isAdmin}
                     tournamentStatus={tournament.status}
                     totalRounds={bracketData.totalLosersRounds}
+                    bracketSide="losers"
                     onEnterResult={onEnterResult}
                     onPredict={onPredict}
                     onChangeFormat={onChangeFormat}
