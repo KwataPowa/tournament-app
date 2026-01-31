@@ -188,42 +188,29 @@ export function TournamentDetailPage() {
 
 
 
-  // Auto-center selected round ONCE after initial round selection
-  const initialRoundCenteredRef = useRef(false)
-  const prevSelectedRoundRef = useRef(selectedRound)
   // Track if round has been initialized (to prevent resetting user selection)
   const roundInitializedRef = useRef(false)
+  // Track if this is the first scroll (use instant) vs subsequent (use smooth)
+  const isFirstScrollRef = useRef(true)
 
+  // Auto-scroll to keep selected round visible when it changes
   useEffect(() => {
-    // Skip if already centered or still loading
-    if (initialRoundCenteredRef.current || loading || matches.length === 0) return
+    if (loading || matches.length === 0 || !roundsScrollRef.current) return
 
-    // Only center if selectedRound changed from the default (1) to something else
-    // OR if it stayed at 1 but matches are loaded (meaning 1 is the real value)
-    const roundWasUpdated = prevSelectedRoundRef.current !== selectedRound || matches.length > 0
-    prevSelectedRoundRef.current = selectedRound
+    const container = roundsScrollRef.current
+    const selectedButton = container.querySelector(`[data-round="${selectedRound}"]`) as HTMLElement
 
-    if (!roundWasUpdated) return
+    if (selectedButton) {
+      const containerCenter = container.offsetWidth / 2
+      const buttonCenter = selectedButton.offsetWidth / 2
+      const scrollLeft = selectedButton.offsetLeft - containerCenter + buttonCenter
 
-    const centerSelectedRound = () => {
-      if (roundsScrollRef.current) {
-        const container = roundsScrollRef.current
-        const selectedButton = container.querySelector(`[data-round="${selectedRound}"]`) as HTMLElement
-
-        if (selectedButton) {
-          const containerCenter = container.offsetWidth / 2
-          const buttonCenter = selectedButton.offsetWidth / 2
-          const scrollLeft = selectedButton.offsetLeft - containerCenter + buttonCenter
-
-          container.scrollTo({ left: scrollLeft, behavior: 'instant' })
-          initialRoundCenteredRef.current = true
-        }
-      }
+      container.scrollTo({
+        left: scrollLeft,
+        behavior: isFirstScrollRef.current ? 'instant' : 'smooth'
+      })
+      isFirstScrollRef.current = false
     }
-
-    // Delay to ensure DOM and round selection are ready
-    const timer = setTimeout(centerSelectedRound, 200)
-    return () => clearTimeout(timer)
   }, [selectedRound, loading, matches.length])
 
   // useLayoutEffect runs after DOM updates but before paint
@@ -997,7 +984,7 @@ export function TournamentDetailPage() {
   const playedMatches = matches.filter((m) => m.result !== null).length
 
   // Effective Rules Calculation
-  const effectiveRules = activeStage?.scoring_rules || tournament.scoring_rules
+  const effectiveRules = activeStage?.scoring_rules || tournament?.scoring_rules
 
   return (
     <div className="space-y-8 overflow-hidden">
@@ -1444,6 +1431,23 @@ export function TournamentDetailPage() {
       {isBracketFormat ? (
         /* VUE BRACKET */
         <div className="space-y-6">
+          {/* Classement Joueurs en haut */}
+          <Card>
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-yellow-400" /> Classement Joueurs
+            </h2>
+            <LeaderboardTable
+              entries={leaderboard}
+              loading={leaderboardLoading}
+              isAdmin={isAdmin}
+              adminId={tournament?.admin_id}
+              onRemoveParticipant={handleRemoveParticipant}
+              onUpdateBonus={handleUpdateBonus}
+              compact
+            />
+          </Card>
+
+          {/* Bracket en dessous */}
           <Card className="overflow-hidden">
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <Medal className="w-5 h-5 text-cyan-400" /> Bracket
@@ -1475,20 +1479,6 @@ export function TournamentDetailPage() {
                 teams={teams}
               />
             )}
-          </Card>
-
-          <Card>
-            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-yellow-400" /> Classement
-            </h2>
-            <LeaderboardTable
-              entries={leaderboard}
-              loading={leaderboardLoading}
-              isAdmin={isAdmin}
-              adminId={tournament?.admin_id}
-              onRemoveParticipant={handleRemoveParticipant}
-              onUpdateBonus={handleUpdateBonus}
-            />
           </Card>
         </div>
       ) : (

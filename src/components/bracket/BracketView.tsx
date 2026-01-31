@@ -1,7 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import type { Match, Prediction, Tournament, MatchFormat } from '../../types'
 import { BracketRound } from './BracketRound'
+import { BracketMobileView } from './BracketMobileView'
 import { getRoundName } from '../../services/brackets'
+
+const MOBILE_BREAKPOINT = 768
 
 type BracketViewProps = {
   matches: Match[]
@@ -26,6 +29,19 @@ export function BracketView({
   onEdit,
   teams,
 }: BracketViewProps) {
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+    }
+
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
   // Create prediction lookup map
   const predictionsByMatch = useMemo(() => {
     const map: Record<string, Prediction> = {}
@@ -152,6 +168,23 @@ export function BracketView({
 
   // Check if rounds can be assigned
 
+
+  // Mobile view with round navigation
+  if (isMobile) {
+    return (
+      <BracketMobileView
+        matches={matches}
+        predictions={predictions}
+        tournament={tournament}
+        isAdmin={isAdmin}
+        onEnterResult={onEnterResult}
+        onPredict={onPredict}
+        onChangeFormat={onChangeFormat}
+        onEdit={onEdit}
+        teams={teams}
+      />
+    )
+  }
 
   return (
     <div className="bracket-container">
