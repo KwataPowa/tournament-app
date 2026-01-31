@@ -181,6 +181,8 @@ export function TournamentDetailPage() {
   const [selectedRound, setSelectedRound] = useState<number>(1)
   // State for mobile tabs (matches vs standings vs infos)
   const [mobileTab, setMobileTab] = useState<'matches' | 'standings' | 'infos'>('matches')
+  // State for sidebar standings tab (desktop)
+  const [standingsTab, setStandingsTab] = useState<'players' | 'teams'>('players')
   const tabsRef = useRef<HTMLDivElement>(null)
 
   // Ref for the round selector container
@@ -1444,22 +1446,6 @@ export function TournamentDetailPage() {
       {isBracketFormat ? (
         /* VUE BRACKET */
         <div className="space-y-6">
-          <Card>
-            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-yellow-400" /> Classement
-            </h2>
-            <div className="overflow-hidden rounded-lg border border-white/5 bg-black/20">
-              <LeaderboardTable
-                entries={leaderboard}
-                loading={leaderboardLoading}
-                isAdmin={isAdmin}
-                adminId={tournament?.admin_id}
-                onRemoveParticipant={handleRemoveParticipant}
-                onUpdateBonus={handleUpdateBonus}
-              />
-            </div>
-          </Card>
-
           <Card className="overflow-hidden">
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <Medal className="w-5 h-5 text-cyan-400" /> Bracket
@@ -1492,43 +1478,29 @@ export function TournamentDetailPage() {
               />
             )}
           </Card>
+
+          <Card>
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-yellow-400" /> Classement
+            </h2>
+            <LeaderboardTable
+              entries={leaderboard}
+              loading={leaderboardLoading}
+              isAdmin={isAdmin}
+              adminId={tournament?.admin_id}
+              onRemoveParticipant={handleRemoveParticipant}
+              onUpdateBonus={handleUpdateBonus}
+            />
+          </Card>
         </div>
       ) : (
         /* VUE LIGUE */
         <div className="space-y-6 overflow-hidden">
-          {/* Section 1: Classement Joueurs (Full Width) */}
-          <div className={`overflow-hidden ${mobileTab === 'standings' ? 'block' : 'hidden min-[1320px]:block'}`}>
-            <Card className="overflow-hidden">
-              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-yellow-400" /> Classement des joueurs
-              </h2>
-              <div className="overflow-hidden rounded-lg border border-white/5 bg-black/20">
-                <LeaderboardTable
-                  entries={leaderboard}
-                  loading={leaderboardLoading}
-                  isAdmin={isAdmin}
-                  adminId={tournament?.admin_id}
-                  onRemoveParticipant={handleRemoveParticipant}
-                  onUpdateBonus={handleUpdateBonus}
-                />
-              </div>
-            </Card>
-          </div>
 
-          {/* Grid Layout: Team Standings (Left) & Matches (Right) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Colonne Gauche: Classement Équipes */}
-            <div className={`space-y-6 overflow-x-hidden ${mobileTab === 'standings' ? 'block' : 'hidden min-[1320px]:block'}`}>
-              <Card>
-                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-gray-400" /> Classement des équipes
-                </h2>
-                <LeagueStandingsTable teams={teams} matches={stageMatches} />
-              </Card>
-            </div>
-
-            {/* Colonne Droite: Matchs */}
-            <div className={`lg:col-span-2 ${mobileTab === 'matches' ? 'block' : 'hidden min-[1320px]:block'}`}>
+          {/* Grid Layout: Matches (Main) & Standings Sidebar (Right) */}
+          <div className="grid grid-cols-1 min-[1320px]:grid-cols-3 gap-6">
+            {/* Zone Principale: Matchs (2/3) */}
+            <div className={`min-[1320px]:col-span-2 min-[1320px]:order-1 ${mobileTab === 'matches' ? 'block' : 'hidden min-[1320px]:block'}`}>
               <Card>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -1701,6 +1673,81 @@ export function TournamentDetailPage() {
                     </div>
                   </div>
                 )}
+              </Card>
+            </div>
+
+            {/* Sidebar: Classements avec onglets (1/3) */}
+            <div className={`min-[1320px]:order-2 min-[1320px]:self-start ${mobileTab === 'standings' ? 'block' : 'hidden min-[1320px]:block'}`}>
+              <Card className="min-[1320px]:sticky min-[1320px]:top-28">
+                {/* Header Desktop avec onglets intégrés */}
+                <div className="hidden min-[1320px]:flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <Medal className="w-5 h-5 text-gray-400" /> Classements
+                  </h2>
+                  <div className="flex p-0.5 bg-white/5 rounded-lg border border-white/5">
+                    <button
+                      onClick={() => setStandingsTab('players')}
+                      className={`py-1.5 px-3 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 ${standingsTab === 'players'
+                        ? 'bg-violet-600 text-white shadow'
+                        : 'text-gray-400 hover:text-white'
+                        }`}
+                    >
+                      <Trophy className="w-3.5 h-3.5" /> Joueurs
+                    </button>
+                    <button
+                      onClick={() => setStandingsTab('teams')}
+                      className={`py-1.5 px-3 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 ${standingsTab === 'teams'
+                        ? 'bg-violet-600 text-white shadow'
+                        : 'text-gray-400 hover:text-white'
+                        }`}
+                    >
+                      <Users className="w-3.5 h-3.5" /> Équipes
+                    </button>
+                  </div>
+                </div>
+
+                {/* Contenu Desktop: Hauteur adaptative avec scroll si nécessaire */}
+                <div className="hidden min-[1320px]:block max-h-[550px] overflow-y-auto scrollbar-hide -mx-6 px-6">
+                  {standingsTab === 'players' ? (
+                    <LeaderboardTable
+                      entries={leaderboard}
+                      loading={leaderboardLoading}
+                      isAdmin={isAdmin}
+                      adminId={tournament?.admin_id}
+                      onRemoveParticipant={handleRemoveParticipant}
+                      onUpdateBonus={handleUpdateBonus}
+                      compact
+                    />
+                  ) : (
+                    <LeagueStandingsTable teams={teams} matches={stageMatches} />
+                  )}
+                </div>
+
+                {/* Contenu Mobile: Les deux classements empilés */}
+                <div className="min-[1320px]:hidden space-y-6">
+                  {/* Classement Joueurs (Priorité 2) */}
+                  <div>
+                    <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                      <Trophy className="w-5 h-5 text-yellow-400" /> Classement des joueurs
+                    </h2>
+                    <LeaderboardTable
+                      entries={leaderboard}
+                      loading={leaderboardLoading}
+                      isAdmin={isAdmin}
+                      adminId={tournament?.admin_id}
+                      onRemoveParticipant={handleRemoveParticipant}
+                      onUpdateBonus={handleUpdateBonus}
+                    />
+                  </div>
+
+                  {/* Classement Équipes (Priorité 3) */}
+                  <div>
+                    <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                      <Users className="w-5 h-5 text-gray-400" /> Classement des équipes
+                    </h2>
+                    <LeagueStandingsTable teams={teams} matches={stageMatches} />
+                  </div>
+                </div>
               </Card>
             </div>
           </div>
