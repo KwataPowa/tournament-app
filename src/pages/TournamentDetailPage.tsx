@@ -181,8 +181,6 @@ export function TournamentDetailPage() {
   const [selectedRound, setSelectedRound] = useState<number>(1)
   // State for mobile tabs (matches vs standings vs infos)
   const [mobileTab, setMobileTab] = useState<'matches' | 'standings' | 'infos'>('matches')
-  // State for sidebar standings tab (desktop)
-  const [standingsTab, setStandingsTab] = useState<'players' | 'teams'>('players')
   const tabsRef = useRef<HTMLDivElement>(null)
 
   // Ref for the round selector container
@@ -1676,78 +1674,30 @@ export function TournamentDetailPage() {
               </Card>
             </div>
 
-            {/* Sidebar: Classements avec onglets (1/3) */}
-            <div className={`min-[1320px]:order-2 min-[1320px]:self-start ${mobileTab === 'standings' ? 'block' : 'hidden min-[1320px]:block'}`}>
-              <Card className="min-[1320px]:sticky min-[1320px]:top-28">
-                {/* Header Desktop avec onglets intégrés */}
-                <div className="hidden min-[1320px]:flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Medal className="w-5 h-5 text-gray-400" /> Classements
-                  </h2>
-                  <div className="flex p-0.5 bg-white/5 rounded-lg border border-white/5">
-                    <button
-                      onClick={() => setStandingsTab('players')}
-                      className={`py-1.5 px-3 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 ${standingsTab === 'players'
-                        ? 'bg-violet-600 text-white shadow'
-                        : 'text-gray-400 hover:text-white'
-                        }`}
-                    >
-                      <Trophy className="w-3.5 h-3.5" /> Joueurs
-                    </button>
-                    <button
-                      onClick={() => setStandingsTab('teams')}
-                      className={`py-1.5 px-3 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 ${standingsTab === 'teams'
-                        ? 'bg-violet-600 text-white shadow'
-                        : 'text-gray-400 hover:text-white'
-                        }`}
-                    >
-                      <Users className="w-3.5 h-3.5" /> Équipes
-                    </button>
-                  </div>
-                </div>
+            {/* Sidebar: Deux cards de classements empilées (1/3) */}
+            <div className={`min-[1320px]:order-2 min-[1320px]:self-start space-y-4 ${mobileTab === 'standings' ? 'block' : 'hidden min-[1320px]:block'}`}>
+              {/* Card Classement Joueurs */}
+              <Card>
+                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-yellow-400" /> Classement Joueurs
+                </h2>
+                <LeaderboardTable
+                  entries={leaderboard}
+                  loading={leaderboardLoading}
+                  isAdmin={isAdmin}
+                  adminId={tournament?.admin_id}
+                  onRemoveParticipant={handleRemoveParticipant}
+                  onUpdateBonus={handleUpdateBonus}
+                  compact
+                />
+              </Card>
 
-                {/* Contenu Desktop: Hauteur adaptative avec scroll si nécessaire */}
-                <div className="hidden min-[1320px]:block max-h-[550px] overflow-y-auto scrollbar-hide -mx-6 px-6">
-                  {standingsTab === 'players' ? (
-                    <LeaderboardTable
-                      entries={leaderboard}
-                      loading={leaderboardLoading}
-                      isAdmin={isAdmin}
-                      adminId={tournament?.admin_id}
-                      onRemoveParticipant={handleRemoveParticipant}
-                      onUpdateBonus={handleUpdateBonus}
-                      compact
-                    />
-                  ) : (
-                    <LeagueStandingsTable teams={teams} matches={stageMatches} />
-                  )}
-                </div>
-
-                {/* Contenu Mobile: Les deux classements empilés */}
-                <div className="min-[1320px]:hidden space-y-6">
-                  {/* Classement Joueurs (Priorité 2) */}
-                  <div>
-                    <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                      <Trophy className="w-5 h-5 text-yellow-400" /> Classement des joueurs
-                    </h2>
-                    <LeaderboardTable
-                      entries={leaderboard}
-                      loading={leaderboardLoading}
-                      isAdmin={isAdmin}
-                      adminId={tournament?.admin_id}
-                      onRemoveParticipant={handleRemoveParticipant}
-                      onUpdateBonus={handleUpdateBonus}
-                    />
-                  </div>
-
-                  {/* Classement Équipes (Priorité 3) */}
-                  <div>
-                    <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                      <Users className="w-5 h-5 text-gray-400" /> Classement des équipes
-                    </h2>
-                    <LeagueStandingsTable teams={teams} matches={stageMatches} />
-                  </div>
-                </div>
+              {/* Card Classement Équipes */}
+              <Card>
+                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-cyan-400" /> Classement Équipes
+                </h2>
+                <LeagueStandingsTable teams={teams} matches={stageMatches} />
               </Card>
             </div>
           </div>
