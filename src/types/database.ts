@@ -16,6 +16,31 @@ export type MatchResult = {
 
 export type BracketSide = 'winners' | 'losers' | 'grand_final'
 
+export type SwissConfig = {
+  total_rounds: number
+  current_round: number
+  pairing_method: 'dutch' | 'manual'
+  wins_to_qualify: number
+  losses_to_eliminate: number
+}
+
+export type SwissTeamStatus = 'qualified' | 'eliminated' | 'active'
+
+export type SwissTeamRecord = {
+  team: string
+  wins: number
+  losses: number
+  status: SwissTeamStatus
+  nextMatchPotential: 'qualification' | 'elimination' | 'neutral'
+}
+
+export type SwissBucket = {
+  record: string // "3-0", "2-1", etc.
+  teams: SwissTeamRecord[]
+  isQualified: boolean
+  isEliminated: boolean
+}
+
 export type Team = {
   name: string
   logo?: string

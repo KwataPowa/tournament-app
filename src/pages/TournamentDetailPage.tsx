@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef, useLayoutEffect } from 'react'
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthContext } from '../lib/AuthContext'
+import { supabase } from '../lib/supabase'
 import { getTournamentWithMatches, updateTournament, deleteTournament, removeParticipant, updateParticipantBonus, createStage, updateStage, deleteStage } from '../services/tournaments'
 import { createMatch, updateMatch, deleteMatch, enterMatchResult, updateMatchResultRecursive, recalculateTournamentPoints } from '../services/matches'
 import { getUserPredictionsForTournament, createOrUpdatePrediction } from '../services/predictions'
@@ -11,12 +12,18 @@ import { MatchResultModal } from '../components/MatchResultModal'
 import { PredictionModal } from '../components/PredictionModal'
 import { LeaderboardTable } from '../components/LeaderboardTable'
 import { LeagueStandingsTable } from '../components/LeagueStandingsTable'
+import { SwissStandingsTable } from '../components/SwissStandingsTable'
+import { SwissRoundView } from '../components/SwissRoundView'
+import { SwissPairingAssistant } from '../components/SwissPairingAssistant'
+import { SwissBracketView } from '../components/SwissBracketView'
 import { LeagueMatchRow } from '../components/LeagueMatchRow'
 import { StageCreateModal } from '../components/StageCreateModal'
 import { StageSettingsModal } from '../components/StageSettingsModal'
 import { StageSeedingModal } from '../components/StageSeedingModal'
 import { BracketView } from '../components/bracket'
 import { generateBracket, nextPowerOf2 } from '../services/brackets'
+import { calculateSwissStandings, generateSwissPairings, generateSwissRound, updateOpponentHistory, getTeamsWithBye } from '../services/swiss'
+import type { SwissConfig } from '../types'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import type { Tournament, Match, MatchFormat, MatchResult, Prediction, Stage, TournamentFormat, ScoringRules } from '../types'
@@ -42,7 +49,8 @@ import {
   ChevronUp,
   ChevronDown,
   List,
-  GitMerge
+  GitMerge,
+  Shuffle
 } from 'lucide-react'
 
 export function TournamentDetailPage() {
@@ -137,6 +145,20 @@ export function TournamentDetailPage() {
     ? (activeStage.type === 'single_elimination' || activeStage.type === 'double_elimination')
     : (tournament?.format === 'single_elimination' || tournament?.format === 'double_elimination')
 
+  // Déterminer si c'est un format Swiss
+  const isSwissFormat = activeStage
+    ? activeStage.type === 'swiss'
+    : tournament?.format === 'swiss'
+
+  // Swiss config from stage settings
+  const swissConfig = useMemo(() => {
+    return activeStage?.settings?.swiss_config as SwissConfig | undefined
+  }, [activeStage])
+
+  const opponentHistory = useMemo(() => {
+    return (activeStage?.settings?.opponent_history || {}) as Record<string, string[]>
+  }, [activeStage])
+
   // Grouper les matchs par journée (pour l'affichage Ligue)
   const matchesByRound = useMemo(() => {
     const grouped: Record<number, Match[]> = {}
@@ -179,6 +201,11 @@ export function TournamentDetailPage() {
 
   // State for selected round (League view)
   const [selectedRound, setSelectedRound] = useState<number>(1)
+  // State for Swiss round
+  const [swissSelectedRound, setSwissSelectedRound] = useState<number>(1)
+  const [isGeneratingSwissRound, setIsGeneratingSwissRound] = useState(false)
+  const [showSwissPairingAssistant, setShowSwissPairingAssistant] = useState(false)
+  const [swissPairingRound, setSwissPairingRound] = useState<number>(1)
   // State for mobile tabs (matches vs standings vs infos)
   const [mobileTab, setMobileTab] = useState<'matches' | 'standings' | 'infos'>('matches')
   const tabsRef = useRef<HTMLDivElement>(null)
@@ -654,14 +681,27 @@ export function TournamentDetailPage() {
     }
   }
 
-  const handleCreateStage = async (name: string, type: TournamentFormat, rules: ScoringRules) => {
+  const handleCreateStage = async (name: string, type: TournamentFormat, rules: ScoringRules, swissConfig?: { total_rounds: number }) => {
     if (!tournament) return
+
+    // Build settings object for Swiss format
+    const settings: Record<string, any> = {}
+    if (type === 'swiss' && swissConfig) {
+      settings.swiss_config = {
+        total_rounds: swissConfig.total_rounds,
+        current_round: 1,
+        pairing_method: 'dutch'
+      }
+      settings.opponent_history = {}
+    }
+
     const newStage = await createStage({
       tournament_id: tournament.id,
       name,
       type,
       sequence_order: stages.length + 1,
-      scoring_rules: rules
+      scoring_rules: rules,
+      settings
     })
     setStages([...stages, newStage])
     setActiveStageId(newStage.id)
@@ -917,6 +957,146 @@ export function TournamentDetailPage() {
     } catch (err) {
       console.error('Erreur changement format:', err)
     }
+  }
+
+  // Swiss: générer la prochaine ronde
+  const handleGenerateSwissRound = async () => {
+    if (!tournament || !activeStage || !swissConfig || isGeneratingSwissRound) return
+
+    const currentRound = swissConfig.current_round || 1
+    const nextRound = currentRound + 1
+
+    if (nextRound > swissConfig.total_rounds) return
+
+    setIsGeneratingSwissRound(true)
+
+    try {
+      // Calculate current standings
+      const teamNames = teams.map(t => t.name)
+      const standings = calculateSwissStandings(teamNames, stageMatches, opponentHistory)
+
+      // Get teams that already had a BYE
+      const teamsWithBye = getTeamsWithBye(stageMatches)
+
+      // Generate pairings for next round
+      const pairings = generateSwissPairings(standings, opponentHistory, teamsWithBye)
+
+      // Create matches
+      const newMatches = await generateSwissRound(
+        tournament.id,
+        activeStage.id,
+        nextRound,
+        pairings,
+        'BO3' // Could be configurable
+      )
+
+      // Update opponent history
+      const newHistory = updateOpponentHistory(opponentHistory, newMatches)
+
+      // Update stage settings with new round number and history
+      await updateStage(activeStage.id, {
+        settings: {
+          ...activeStage.settings,
+          swiss_config: {
+            ...swissConfig,
+            current_round: nextRound
+          },
+          opponent_history: newHistory
+        }
+      })
+
+      // Refresh data
+      setMatches(prev => [...prev, ...newMatches])
+      setSwissSelectedRound(nextRound)
+
+      // Update local stage state
+      setStages(prev => prev.map(s =>
+        s.id === activeStage.id
+          ? {
+            ...s,
+            settings: {
+              ...s.settings,
+              swiss_config: { ...swissConfig, current_round: nextRound },
+              opponent_history: newHistory
+            }
+          }
+          : s
+      ))
+    } catch (err) {
+      console.error('Erreur génération ronde Swiss:', err)
+    } finally {
+      setIsGeneratingSwissRound(false)
+    }
+  }
+
+  // Swiss: ouvrir l'assistant de pairage
+  const openSwissPairingAssistant = (round: number) => {
+    setSwissPairingRound(round)
+    setShowSwissPairingAssistant(true)
+  }
+
+  // Swiss: créer les matchs depuis l'assistant de pairage
+  const handleCreateSwissMatches = async (pairings: { team_a: string; team_b: string | null; is_bye: boolean }[]) => {
+    if (!tournament || !activeStage) return
+
+    const matchInserts = pairings.map(p => ({
+      tournament_id: tournament.id,
+      stage_id: activeStage.id,
+      team_a: p.team_a,
+      team_b: p.team_b || 'BYE',
+      round: swissPairingRound,
+      match_format: 'BO3' as const,
+      is_bye: p.is_bye,
+      result: p.is_bye ? { winner: p.team_a, score: 'BYE' } : null
+    }))
+
+    // Créer les matchs
+    const { data: newMatches, error } = await supabase
+      .from('matches')
+      .insert(matchInserts)
+      .select()
+
+    if (error) throw error
+
+    // Mettre à jour l'historique des adversaires
+    const newHistory = { ...opponentHistory }
+    pairings.forEach(p => {
+      if (p.is_bye || !p.team_b) return
+      if (!newHistory[p.team_a]) newHistory[p.team_a] = []
+      if (!newHistory[p.team_b]) newHistory[p.team_b] = []
+      if (!newHistory[p.team_a].includes(p.team_b)) newHistory[p.team_a].push(p.team_b)
+      if (!newHistory[p.team_b].includes(p.team_a)) newHistory[p.team_b].push(p.team_a)
+    })
+
+    // Mettre à jour les settings du stage
+    const newCurrentRound = Math.max(swissConfig?.current_round || 0, swissPairingRound)
+    await updateStage(activeStage.id, {
+      settings: {
+        ...activeStage.settings,
+        swiss_config: {
+          ...swissConfig,
+          current_round: newCurrentRound
+        },
+        opponent_history: newHistory
+      }
+    })
+
+    // Refresh local state
+    setMatches(prev => [...prev, ...(newMatches as Match[])])
+    setStages(prev => prev.map(s =>
+      s.id === activeStage.id
+        ? {
+          ...s,
+          settings: {
+            ...s.settings,
+            swiss_config: { ...swissConfig, current_round: newCurrentRound },
+            opponent_history: newHistory
+          }
+        }
+        : s
+    ))
+
+    setShowSwissPairingAssistant(false)
   }
 
   const handleSavePoints = async () => {
@@ -1481,6 +1661,81 @@ export function TournamentDetailPage() {
             )}
           </Card>
         </div>
+      ) : isSwissFormat ? (
+        /* VUE SWISS */
+        <div className="space-y-6">
+          {/* Leaderboard & Swiss Standings side by side on desktop */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Classement Joueurs */}
+            <Card>
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-yellow-400" /> Classement Joueurs
+              </h2>
+              <LeaderboardTable
+                entries={leaderboard}
+                loading={leaderboardLoading}
+                isAdmin={isAdmin}
+                adminId={tournament?.admin_id}
+                onRemoveParticipant={handleRemoveParticipant}
+                onUpdateBonus={handleUpdateBonus}
+                compact
+              />
+            </Card>
+
+            {/* Classement Équipes */}
+            <Card>
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Shuffle className="w-5 h-5 text-emerald-400" /> Classement Suisse
+              </h2>
+              <SwissStandingsTable
+                teams={teams}
+                matches={stageMatches}
+                opponentHistory={opponentHistory}
+                swissConfig={swissConfig}
+              />
+            </Card>
+          </div>
+
+          {/* Swiss Bracket */}
+          {swissConfig && (
+            <Card>
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-violet-400" /> Swiss Bracket
+              </h2>
+              <SwissBracketView
+                teams={teams}
+                matches={stageMatches}
+                opponentHistory={opponentHistory}
+                swissConfig={swissConfig}
+                currentRound={swissSelectedRound}
+              />
+            </Card>
+          )}
+
+          {/* Rondes */}
+          <Card>
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-gray-400" /> Rondes
+            </h2>
+            <SwissRoundView
+              matches={stageMatches}
+              predictions={predictions}
+              teams={teams}
+              currentRound={swissSelectedRound}
+              totalRounds={swissConfig?.total_rounds || 5}
+              tournamentStatus={tournament?.status || 'active'}
+              isAdmin={isAdmin}
+              pairingMode={swissConfig?.pairing_method || 'dutch'}
+              onRoundChange={setSwissSelectedRound}
+              onGenerateNextRound={handleGenerateSwissRound}
+              onAddMatch={openAddMatch}
+              onOpenPairingAssistant={openSwissPairingAssistant}
+              onPredict={(match) => setPredictionMatch(match)}
+              onEditMatch={openEditMatch}
+              isGenerating={isGeneratingSwissRound}
+            />
+          </Card>
+        </div>
       ) : (
         /* VUE LIGUE */
         <div className="space-y-6 overflow-hidden">
@@ -1705,13 +1960,14 @@ export function TournamentDetailPage() {
           homeAndAway={tournament.home_and_away}
           tournamentStatus={tournament.status}
           isBracket={isBracketFormat}
+          isSwiss={isSwissFormat}
           canEditTeams={canEditTeamsForMatch(editingMatch)}
           availableTeamsForSlotA={getAvailableTeamsForSlot(editingMatch, 'team_a')}
           availableTeamsForSlotB={getAvailableTeamsForSlot(editingMatch, 'team_b')}
           roundDates={tournament?.round_dates || {}}
           onSave={handleSaveMatch}
           onSaveResult={handleSaveResult}
-          onDelete={editingMatch && !isBracketFormat ? handleDeleteMatch : undefined}
+          onDelete={editingMatch && !isBracketFormat && !isSwissFormat ? handleDeleteMatch : undefined}
           onClose={closeModal}
         />
       )}
@@ -1763,6 +2019,18 @@ export function TournamentDetailPage() {
           allTeams={teams} // All teams available in tournament
           onSave={handleSeeding}
           onClose={() => setIsSeedingStage(false)}
+        />
+      )}
+
+      {showSwissPairingAssistant && tournament && (
+        <SwissPairingAssistant
+          teams={teams}
+          matches={stageMatches}
+          opponentHistory={opponentHistory}
+          roundNumber={swissPairingRound}
+          defaultMatchFormat="BO3"
+          onCreateMatches={handleCreateSwissMatches}
+          onClose={() => setShowSwissPairingAssistant(false)}
         />
       )}
     </div>

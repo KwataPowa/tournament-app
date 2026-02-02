@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Trophy, List, GitCommit, Plus, ChevronUp, ChevronDown } from 'lucide-react'
+import { X, Trophy, List, GitCommit, Plus, ChevronUp, ChevronDown, Shuffle } from 'lucide-react'
 import { Button } from './ui/Button'
 import type { TournamentFormat, ScoringRules } from '../types'
 
 interface StageCreateModalProps {
-    onSave: (name: string, type: TournamentFormat, rules: { correct_winner_points: number, exact_score_bonus: number }) => Promise<void>
+    onSave: (name: string, type: TournamentFormat, rules: { correct_winner_points: number, exact_score_bonus: number }, swissConfig?: { total_rounds: number, wins_to_qualify: number, losses_to_eliminate: number }) => Promise<void>
     onClose: () => void
     defaultRules?: ScoringRules
 }
@@ -17,7 +17,13 @@ export function StageCreateModal({ onSave, onClose, defaultRules }: StageCreateM
         correct_winner_points: defaultRules?.correct_winner_points ?? 3,
         exact_score_bonus: defaultRules?.exact_score_bonus ?? 1
     })
+    const [swissRounds, setSwissRounds] = useState(5)
+    const [swissWinsToQualify, setSwissWinsToQualify] = useState(3)
+    const [swissLossesToEliminate, setSwissLossesToEliminate] = useState(3)
     const [loading, setLoading] = useState(false)
+
+    // Validation Swiss config
+    const isSwissConfigValid = type !== 'swiss' || swissRounds >= (swissWinsToQualify + swissLossesToEliminate - 1)
 
     // Prevent Body Scroll when modal is open
     useEffect(() => {
@@ -33,7 +39,12 @@ export function StageCreateModal({ onSave, onClose, defaultRules }: StageCreateM
 
         setLoading(true)
         try {
-            await onSave(name, type, rules)
+            const swissConfig = type === 'swiss' ? {
+                total_rounds: swissRounds,
+                wins_to_qualify: swissWinsToQualify,
+                losses_to_eliminate: swissLossesToEliminate
+            } : undefined
+            await onSave(name, type, rules, swissConfig)
             onClose()
         } catch (err) {
             console.error(err)
@@ -61,11 +72,10 @@ export function StageCreateModal({ onSave, onClose, defaultRules }: StageCreateM
             icon: <GitCommit className="w-5 h-5" />,
             desc: 'Arbre avec Winner et Loser bracket. Deux défaites pour être éliminé.'
         },
-        // Swiss not yet fully implemented visually in icons list in this file but keeping for consistency
         {
             id: 'swiss',
             label: 'Rondes Suisses',
-            icon: <List className="w-5 h-5" />,
+            icon: <Shuffle className="w-5 h-5" />,
             desc: 'Affrontements par niveau de score similaire à chaque round.'
         }
     ]
@@ -164,6 +174,71 @@ export function StageCreateModal({ onSave, onClose, defaultRules }: StageCreateM
                                         ))}
                                     </div>
                                 </div>
+
+                                {/* Swiss-specific config */}
+                                {type === 'swiss' && (
+                                    <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-3">
+                                        <label className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                                            <Shuffle className="w-4 h-4" />
+                                            Configuration Suisse
+                                        </label>
+                                        <div className="flex items-center gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-xs text-gray-400">Nombre de rondes</label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        max="15"
+                                                        value={swissRounds}
+                                                        onChange={(e) => setSwissRounds(parseInt(e.target.value) || 5)}
+                                                        className="w-20 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-emerald-400 text-center font-mono font-bold focus:border-emerald-500/50 outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-gray-500 flex-1">
+                                                Les matchs seront générés automatiquement à chaque ronde basés sur le classement.
+                                            </p>
+                                        </div>
+
+                                        {/* Qualification criteria */}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <label className="text-xs text-emerald-400">Wins to Qualify</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    max="10"
+                                                    value={swissWinsToQualify}
+                                                    onChange={(e) => setSwissWinsToQualify(parseInt(e.target.value) || 3)}
+                                                    className="w-full bg-black/30 border border-emerald-500/20 rounded-lg px-3 py-2 text-emerald-400 text-center font-mono"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-xs text-red-400">Losses to Eliminate</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    max="10"
+                                                    value={swissLossesToEliminate}
+                                                    onChange={(e) => setSwissLossesToEliminate(parseInt(e.target.value) || 3)}
+                                                    className="w-full bg-black/30 border border-red-500/20 rounded-lg px-3 py-2 text-red-400 text-center font-mono"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {!isSwissConfigValid && (
+                                            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400">
+                                                Besoin d'au moins {swissWinsToQualify + swissLossesToEliminate - 1} rounds pour {swissWinsToQualify} wins / {swissLossesToEliminate} losses
+                                            </div>
+                                        )}
+
+                                        <div className="p-3 bg-violet-500/10 border border-violet-500/20 rounded-lg text-xs text-gray-400">
+                                            Teams need <span className="text-emerald-400 font-bold">{swissWinsToQualify} wins</span> to qualify or
+                                            <span className="text-red-400 font-bold"> {swissLossesToEliminate} losses</span> to be eliminated.
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="h-px bg-white/10" />
 

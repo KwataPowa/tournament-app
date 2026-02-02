@@ -15,6 +15,8 @@ type MatchEditModalProps = {
   tournamentStatus?: 'draft' | 'active' | 'completed'
   /** Mode bracket: équipes en lecture seule (gérées automatiquement) */
   isBracket?: boolean
+  /** Mode Swiss: équipes en lecture seule (pairings calculés) */
+  isSwiss?: boolean
   /** Bracket: can teams be edited (phase logic) */
   canEditTeams?: boolean
   /** Bracket: available teams for slot A (excluding already assigned in this round) */
@@ -207,6 +209,7 @@ export function MatchEditModal({
   homeAndAway,
   tournamentStatus = 'draft',
   isBracket = false,
+  isSwiss = false,
   canEditTeams = false,
   availableTeamsForSlotA = [],
   availableTeamsForSlotB = [],
@@ -229,6 +232,13 @@ export function MatchEditModal({
   }
 
   const [timeValue, setTimeValue] = useState(formatTime(match?.start_time))
+  const [dateValue, setDateValue] = useState(() => {
+    if (match?.start_time) {
+      const date = new Date(match.start_time)
+      return date.toISOString().split('T')[0]
+    }
+    return ''
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -321,18 +331,21 @@ export function MatchEditModal({
       const [hours, minutes] = timeValue.split(':').map(Number)
 
       // Determine Base Date
-      // 1. Round Date (Global)
-      const roundDateStr = roundDates[round.toString()]
       let baseDate: Date
 
-      if (roundDateStr) {
-        baseDate = new Date(roundDateStr)
-      } else if (match?.start_time) {
-        // 2. Existing Match Date (fallback)
-        baseDate = new Date(match.start_time)
+      if (isSwiss && dateValue) {
+        // Swiss: use individual match date
+        baseDate = new Date(dateValue)
       } else {
-        // 3. Today (fallback)
-        baseDate = new Date()
+        // League/Bracket: use round date or fallback
+        const roundDateStr = roundDates[round.toString()]
+        if (roundDateStr) {
+          baseDate = new Date(roundDateStr)
+        } else if (match?.start_time) {
+          baseDate = new Date(match.start_time)
+        } else {
+          baseDate = new Date()
+        }
       }
 
       // Apply time
@@ -478,7 +491,7 @@ export function MatchEditModal({
             <div className="overflow-y-auto custom-scrollbar">
               <form onSubmit={handleSubmit} className="relative p-6 space-y-6">
                 {/* Teams display */}
-                {isEdit && isBracket ? (
+                {isEdit && (isBracket || isSwiss) ? (
                   /* Mode Édition: Affichage simple des équipes VS */
                   <div className="flex items-center justify-center gap-4 py-4 bg-white/5 rounded-xl border border-white/10">
                     <div className="flex items-center gap-2">
@@ -527,8 +540,8 @@ export function MatchEditModal({
                   </div>
                 ) : (
                   /* Mode Création: Sélection des équipes */
-                  isBracket ? (
-                    /* Mode Bracket: équipes éditables si canEditTeams=true, sinon lecture seule */
+                  (isBracket || isSwiss) ? (
+                    /* Mode Bracket/Swiss: équipes éditables si canEditTeams=true, sinon lecture seule */
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Équipe A */}
                       <div>
@@ -645,9 +658,9 @@ export function MatchEditModal({
                 )}
 
                 {/* Round (ligue) and Format - Readonly in Edit */}
-                {isEdit && isBracket ? (
+                {isEdit && (isBracket || isSwiss) ? (
                   <div className="flex items-center justify-between px-4 py-3 bg-white/5 rounded-lg text-sm text-gray-400">
-                    <span>Journée {round}</span>
+                    <span>{isSwiss ? 'Ronde' : 'Journée'} {round}</span>
                     <span>Format {matchFormat}</span>
                   </div>
                 ) : (
@@ -655,7 +668,7 @@ export function MatchEditModal({
                     {!isBracket && (
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
-                          Journée
+                          {isSwiss ? 'Ronde' : 'Journée'}
                         </label>
                         <input
                           type="number"
@@ -694,27 +707,55 @@ export function MatchEditModal({
                   </div>
                 )}
 
-                {/* Time Only (Date is derived from Round) */}
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-sm font-medium text-gray-300">
-                      Horaire du match
-                    </label>
-                    <span className="text-xs text-cyan-400 font-mono">
-                      {roundDates[round.toString()]
-                        ? new Date(roundDates[round.toString()]).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
-                        : match?.start_time
-                          ? new Date(match.start_time).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
-                          : "Date non définie"
-                      }
-                    </span>
-                  </div>
-                  <input
-                    type="time"
-                    value={timeValue}
-                    onChange={(e) => setTimeValue(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-mono transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 [color-scheme:dark]"
-                  />
+                {/* Date & Time */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Date et horaire du match
+                  </label>
+
+                  {isSwiss ? (
+                    /* Swiss: date et heure individuelles */
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">Date</label>
+                        <input
+                          type="date"
+                          value={dateValue}
+                          onChange={(e) => setDateValue(e.target.value)}
+                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-mono transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 [color-scheme:dark]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">Heure</label>
+                        <input
+                          type="time"
+                          value={timeValue}
+                          onChange={(e) => setTimeValue(e.target.value)}
+                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-mono transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 [color-scheme:dark]"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    /* League/Bracket: date par round, heure individuelle */
+                    <>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs text-cyan-400 font-mono">
+                          {roundDates[round.toString()]
+                            ? new Date(roundDates[round.toString()]).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+                            : match?.start_time
+                              ? new Date(match.start_time).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+                              : "Date non définie"
+                          }
+                        </span>
+                      </div>
+                      <input
+                        type="time"
+                        value={timeValue}
+                        onChange={(e) => setTimeValue(e.target.value)}
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-mono transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 [color-scheme:dark]"
+                      />
+                    </>
+                  )}
                 </div>
 
                 {/* Section Résultat (seulement en mode actif) */}

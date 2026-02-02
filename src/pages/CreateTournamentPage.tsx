@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuthContext } from '../lib/AuthContext'
 import { createTournament, calculateExpectedMatches } from '../services/tournaments'
 import { generateBracket, nextPowerOf2 } from '../services/brackets'
+import { calculateSwissRounds, generateSwissPairings, generateSwissRound } from '../services/swiss'
 import { supabase } from '../lib/supabase'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -25,7 +26,8 @@ import {
   ChevronDown,
   Trash2,
   AlertCircle,
-  Plus
+  Plus,
+  Shuffle
 } from 'lucide-react'
 
 type FormErrors = {
@@ -33,6 +35,7 @@ type FormErrors = {
   teams?: string
   correctWinnerPoints?: string
   exactScoreBonus?: string
+  swissRounds?: string
 }
 
 type TeamInput = {
@@ -50,6 +53,10 @@ export function CreateTournamentPage() {
   const [homeAndAway, setHomeAndAway] = useState(false)
   const [defaultMatchFormat, setDefaultMatchFormat] = useState<MatchFormat>('BO3')
   const [seedingMode, setSeedingMode] = useState<'random' | 'manual'>('random')
+  const [swissRounds, setSwissRounds] = useState(5)
+  const [swissPairingMode, setSwissPairingMode] = useState<'auto' | 'manual'>('auto')
+  const [swissWinsToQualify, setSwissWinsToQualify] = useState(3)
+  const [swissLossesToEliminate, setSwissLossesToEliminate] = useState(3)
   const [teamInputs, setTeamInputs] = useState<TeamInput[]>([
     { id: crypto.randomUUID(), name: '', logo: '' },
     { id: crypto.randomUUID(), name: '', logo: '' },
@@ -97,8 +104,20 @@ export function CreateTournamentPage() {
     }
   }, [format, teams, homeAndAway])
 
-  // Vérifier si le format est elimination
+  // Vérifier si le format est elimination ou swiss
   const isElimination = format === 'single_elimination' || format === 'double_elimination'
+  const isSwiss = format === 'swiss'
+
+  // Stats pour le format Swiss
+  const swissStats = useMemo(() => {
+    if (!isSwiss || teams.length < 2) return null
+    const recommendedRounds = calculateSwissRounds(teams.length)
+    return {
+      teams: teams.length,
+      recommendedRounds,
+      totalMatches: Math.floor(teams.length / 2) * swissRounds + (teams.length % 2 === 1 ? swissRounds : 0)
+    }
+  }, [isSwiss, teams.length, swissRounds])
 
   const validate = (): boolean => {
     const newErrors: FormErrors = {}
@@ -114,7 +133,7 @@ export function CreateTournamentPage() {
     // Validation des équipes pour tous les formats
     if (teams.length < 2) {
       newErrors.teams = 'Il faut au moins 2 équipes'
-    } else if (format === 'league' && teams.length > 30) {
+    } else if ((format === 'league' || format === 'swiss') && teams.length > 30) {
       newErrors.teams = 'Maximum 30 équipes'
     } else if (isElimination && teams.length > 32) {
       newErrors.teams = 'Maximum 32 équipes pour un bracket'
@@ -137,6 +156,14 @@ export function CreateTournamentPage() {
       newErrors.exactScoreBonus = 'Doit être un nombre positif'
     } else if (bonusPts > 100) {
       newErrors.exactScoreBonus = 'Maximum 100 points'
+    }
+
+    // Validation Swiss config
+    if (isSwiss) {
+      const minRounds = swissWinsToQualify + swissLossesToEliminate - 1
+      if (swissRounds < minRounds) {
+        newErrors.swissRounds = `Besoin d'au moins ${minRounds} rounds pour ${swissWinsToQualify} wins / ${swissLossesToEliminate} losses`
+      }
     }
 
     setErrors(newErrors)
@@ -227,6 +254,79 @@ export function CreateTournamentPage() {
         )
       }
 
+      // Si c'est un format Swiss, configurer le stage
+      if (isSwiss) {
+        // Fetch the default stage created by trigger with retry mechanism
+        let stageId: string | null = null
+        let retries = 0
+        while (!stageId && retries < 5) {
+          const { data: stage } = await supabase
+            .from('stages')
+            .select('id')
+            .eq('tournament_id', tournament.id)
+            .single()
+
+          if (stage) {
+            stageId = stage.id
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 500))
+            retries++
+          }
+        }
+
+        if (stageId) {
+          // Mettre à jour les settings du stage avec la config Swiss
+          // current_round = 1 si auto (Round 1 sera généré), 0 si manuel (aucun match)
+          await supabase
+            .from('stages')
+            .update({
+              settings: {
+                swiss_config: {
+                  total_rounds: swissRounds,
+                  current_round: swissPairingMode === 'auto' ? 1 : 0,
+                  pairing_method: swissPairingMode === 'auto' ? 'dutch' : 'manual',
+                  wins_to_qualify: swissWinsToQualify,
+                  losses_to_eliminate: swissLossesToEliminate
+                },
+                selected_teams: teams.map(t => t.name),
+                opponent_history: {}
+              }
+            })
+            .eq('id', stageId)
+
+          // Générer Round 1 seulement si mode automatique
+          if (swissPairingMode === 'auto') {
+            const initialStandings = teams.map(t => ({
+              team: t.name,
+              points: 0,
+              wins: 0,
+              losses: 0,
+              draws: 0,
+              buchholz: 0,
+              opponentHistory: [] as string[],
+              status: 'active' as const,
+              record: '0-0'
+            }))
+
+            // Mélanger pour Round 1
+            const shuffled = [...initialStandings]
+            for (let i = shuffled.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+            }
+
+            const round1Pairings = generateSwissPairings(shuffled, {})
+            await generateSwissRound(
+              tournament.id,
+              stageId,
+              1,
+              round1Pairings,
+              defaultMatchFormat
+            )
+          }
+        }
+      }
+
       navigate(`/tournaments/${tournament.id}`)
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Une erreur est survenue')
@@ -290,7 +390,7 @@ export function CreateTournamentPage() {
               <label className="block text-sm font-medium text-gray-300 mb-3">
                 Type de tournoi
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <button
                   type="button"
                   onClick={() => setFormat('league')}
@@ -311,6 +411,28 @@ export function CreateTournamentPage() {
                   </span>
                   <span className="text-xs text-gray-400">
                     Round-robin, tous contre tous
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormat('swiss')}
+                  className={`
+                    relative p-4 rounded-xl border-2 text-left transition-all duration-300
+                    ${format === 'swiss'
+                      ? 'bg-emerald-500/10 border-emerald-500 shadow-lg shadow-emerald-500/20'
+                      : 'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/10'
+                    }
+                  `}
+                >
+                  {format === 'swiss' && (
+                    <span className="absolute top-3 right-3 text-emerald-400"><Check className="w-4 h-4" /></span>
+                  )}
+                  <span className="mb-2 block"><Shuffle className={`w-8 h-8 ${format === 'swiss' ? 'text-emerald-400' : 'text-gray-400'}`} /></span>
+                  <span className={`font-semibold block mb-1 ${format === 'swiss' ? 'text-emerald-400' : 'text-white'}`}>
+                    Suisse
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    Pairages par niveau
                   </span>
                 </button>
                 <button
@@ -409,6 +531,156 @@ export function CreateTournamentPage() {
                       Chaque équipe joue deux fois contre chaque autre
                     </span>
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* Options spécifiques au format Swiss */}
+            {isSwiss && (
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">
+                    Nombre de rondes
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <div className="relative group">
+                      <input
+                        type="number"
+                        min={swissStats?.recommendedRounds || 1}
+                        max={teams.length > 1 ? teams.length - 1 : 10}
+                        value={swissRounds}
+                        onChange={(e) => setSwissRounds(parseInt(e.target.value) || 5)}
+                        className="w-24 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-mono
+                          transition-all duration-300 hover:bg-white/[0.07] hover:border-white/15
+                          focus:outline-none focus:bg-white/[0.08] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20
+                          [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                    {swissStats && (
+                      <span className="text-sm text-gray-400">
+                        Recommandé: <span className="text-emerald-400 font-medium">{swissStats.recommendedRounds}</span> rondes pour {swissStats.teams} équipes
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">
+                    Format des matchs
+                  </label>
+                  <div className="grid grid-cols-4 gap-3">
+                    {(['BO1', 'BO3', 'BO5', 'BO7'] as MatchFormat[]).map((mf) => (
+                      <button
+                        key={mf}
+                        type="button"
+                        onClick={() => setDefaultMatchFormat(mf)}
+                        className={`
+                          py-3 px-4 rounded-xl border-2 font-mono transition-all duration-300
+                          ${defaultMatchFormat === mf
+                            ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400'
+                            : 'bg-white/5 border-white/10 text-white hover:border-white/20'
+                          }
+                        `}
+                      >
+                        {mf}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Qualification criteria */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">
+                    Critères de qualification
+                  </label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs text-emerald-400 font-medium">Wins to Qualify</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={swissWinsToQualify}
+                        onChange={(e) => setSwissWinsToQualify(parseInt(e.target.value) || 3)}
+                        className="w-full px-4 py-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-emerald-400 text-center font-mono font-bold
+                          transition-all duration-300 hover:bg-emerald-500/10 hover:border-emerald-500/30
+                          focus:outline-none focus:bg-emerald-500/10 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs text-red-400 font-medium">Losses to Eliminate</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={swissLossesToEliminate}
+                        onChange={(e) => setSwissLossesToEliminate(parseInt(e.target.value) || 3)}
+                        className="w-full px-4 py-3 bg-red-500/5 border border-red-500/20 rounded-xl text-red-400 text-center font-mono font-bold
+                          transition-all duration-300 hover:bg-red-500/10 hover:border-red-500/30
+                          focus:outline-none focus:bg-red-500/10 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                      />
+                    </div>
+                  </div>
+                  {errors.swissRounds && (
+                    <div className="mt-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400">
+                      {errors.swissRounds}
+                    </div>
+                  )}
+                  <div className="mt-2 p-3 bg-violet-500/10 border border-violet-500/20 rounded-lg text-xs text-gray-400">
+                    Teams need <span className="text-emerald-400 font-bold">{swissWinsToQualify} wins</span> to qualify or
+                    <span className="text-red-400 font-bold"> {swissLossesToEliminate} losses</span> to be eliminated.
+                  </div>
+                </div>
+
+                {/* Mode de génération des pairages */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">
+                    Génération des pairages
+                  </label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setSwissPairingMode('auto')}
+                      className={`
+                        relative p-4 rounded-xl border-2 text-left transition-all duration-300
+                        ${swissPairingMode === 'auto'
+                          ? 'bg-emerald-500/10 border-emerald-500 shadow-lg shadow-emerald-500/20'
+                          : 'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/10'
+                        }
+                      `}
+                    >
+                      {swissPairingMode === 'auto' && (
+                        <span className="absolute top-3 right-3 text-emerald-400"><Check className="w-4 h-4" /></span>
+                      )}
+                      <span className={`font-semibold block mb-1 ${swissPairingMode === 'auto' ? 'text-emerald-400' : 'text-white'}`}>
+                        Automatique
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        Les pairages sont générés selon le classement
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSwissPairingMode('manual')}
+                      className={`
+                        relative p-4 rounded-xl border-2 text-left transition-all duration-300
+                        ${swissPairingMode === 'manual'
+                          ? 'bg-violet-500/10 border-violet-500 shadow-lg shadow-violet-500/20'
+                          : 'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/10'
+                        }
+                      `}
+                    >
+                      {swissPairingMode === 'manual' && (
+                        <span className="absolute top-3 right-3 text-violet-400"><Check className="w-4 h-4" /></span>
+                      )}
+                      <span className={`font-semibold block mb-1 ${swissPairingMode === 'manual' ? 'text-violet-400' : 'text-white'}`}>
+                        Manuel
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        Tu crées les matchs toi-même à chaque ronde
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -609,6 +881,18 @@ export function CreateTournamentPage() {
                   <strong>{leagueStats.teams} équipes</strong>
                   <ArrowRight className="w-4 h-4 text-cyan-500" />
                   tu devras créer <strong>{leagueStats.matches} matchs</strong> pour compléter la ligue
+                </p>
+              </div>
+            )}
+
+            {/* Swiss stats preview */}
+            {swissStats && (
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl animate-slide-up">
+                <p className="text-sm text-emerald-400 flex items-center gap-2">
+                  <Shuffle className="w-5 h-5" />
+                  <strong>{swissStats.teams} équipes</strong>
+                  <ArrowRight className="w-4 h-4 text-emerald-500" />
+                  <strong>{swissRounds} rondes</strong> avec matchs générés automatiquement
                 </p>
               </div>
             )}
