@@ -12,7 +12,6 @@ import { MatchResultModal } from '../components/MatchResultModal'
 import { PredictionModal } from '../components/PredictionModal'
 import { LeaderboardTable } from '../components/LeaderboardTable'
 import { LeagueStandingsTable } from '../components/LeagueStandingsTable'
-import { SwissStandingsTable } from '../components/SwissStandingsTable'
 import { SwissRoundView } from '../components/SwissRoundView'
 import { SwissPairingAssistant } from '../components/SwissPairingAssistant'
 import { SwissBracketView } from '../components/SwissBracketView'
@@ -49,8 +48,7 @@ import {
   ChevronUp,
   ChevronDown,
   List,
-  GitMerge,
-  Shuffle
+  GitMerge
 } from 'lucide-react'
 
 export function TournamentDetailPage() {
@@ -1664,39 +1662,54 @@ export function TournamentDetailPage() {
       ) : isSwissFormat ? (
         /* VUE SWISS */
         <div className="space-y-6">
-          {/* Leaderboard & Swiss Standings side by side on desktop */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Classement Joueurs */}
-            <Card>
-              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-yellow-400" /> Classement Joueurs
-              </h2>
-              <LeaderboardTable
-                entries={leaderboard}
-                loading={leaderboardLoading}
-                isAdmin={isAdmin}
-                adminId={tournament?.admin_id}
-                onRemoveParticipant={handleRemoveParticipant}
-                onUpdateBonus={handleUpdateBonus}
-                compact
-              />
-            </Card>
+          {/* Grid: Rondes (2/3) + Classement Joueurs (1/3) */}
+          <div className="grid grid-cols-1 min-[1320px]:grid-cols-3 gap-6">
+            {/* Rondes - Zone Principale (2/3) */}
+            <div className={`min-[1320px]:col-span-2 min-[1320px]:order-1 ${mobileTab === 'matches' ? 'block' : 'hidden min-[1320px]:block'}`}>
+              <Card>
+                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-gray-400" /> Rondes
+                </h2>
+                <SwissRoundView
+                  matches={stageMatches}
+                  predictions={predictions}
+                  teams={teams}
+                  currentRound={swissSelectedRound}
+                  totalRounds={swissConfig?.total_rounds || 5}
+                  tournamentStatus={tournament?.status || 'active'}
+                  isAdmin={isAdmin}
+                  pairingMode={swissConfig?.pairing_method || 'dutch'}
+                  onRoundChange={setSwissSelectedRound}
+                  onGenerateNextRound={handleGenerateSwissRound}
+                  onAddMatch={openAddMatch}
+                  onOpenPairingAssistant={openSwissPairingAssistant}
+                  onPredict={(match) => setPredictionMatch(match)}
+                  onEditMatch={openEditMatch}
+                  isGenerating={isGeneratingSwissRound}
+                />
+              </Card>
+            </div>
 
-            {/* Classement Équipes */}
-            <Card>
-              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Shuffle className="w-5 h-5 text-emerald-400" /> Classement Suisse
-              </h2>
-              <SwissStandingsTable
-                teams={teams}
-                matches={stageMatches}
-                opponentHistory={opponentHistory}
-                swissConfig={swissConfig}
-              />
-            </Card>
+            {/* Classement Joueurs - Sidebar (1/3) */}
+            <div className={`min-[1320px]:order-2 min-[1320px]:self-start ${mobileTab === 'standings' ? 'block' : 'hidden min-[1320px]:block'}`}>
+              <Card>
+                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-yellow-400" /> Classement Joueurs
+                </h2>
+                <LeaderboardTable
+                  entries={leaderboard}
+                  loading={leaderboardLoading}
+                  isAdmin={isAdmin}
+                  adminId={tournament?.admin_id}
+                  onRemoveParticipant={handleRemoveParticipant}
+                  onUpdateBonus={handleUpdateBonus}
+                  compact
+                />
+              </Card>
+            </div>
           </div>
 
-          {/* Swiss Bracket */}
+          {/* Swiss Bracket - Full Width Below */}
           {swissConfig && (
             <Card>
               <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -1711,30 +1724,6 @@ export function TournamentDetailPage() {
               />
             </Card>
           )}
-
-          {/* Rondes */}
-          <Card>
-            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-gray-400" /> Rondes
-            </h2>
-            <SwissRoundView
-              matches={stageMatches}
-              predictions={predictions}
-              teams={teams}
-              currentRound={swissSelectedRound}
-              totalRounds={swissConfig?.total_rounds || 5}
-              tournamentStatus={tournament?.status || 'active'}
-              isAdmin={isAdmin}
-              pairingMode={swissConfig?.pairing_method || 'dutch'}
-              onRoundChange={setSwissSelectedRound}
-              onGenerateNextRound={handleGenerateSwissRound}
-              onAddMatch={openAddMatch}
-              onOpenPairingAssistant={openSwissPairingAssistant}
-              onPredict={(match) => setPredictionMatch(match)}
-              onEditMatch={openEditMatch}
-              isGenerating={isGeneratingSwissRound}
-            />
-          </Card>
         </div>
       ) : (
         /* VUE LIGUE */
