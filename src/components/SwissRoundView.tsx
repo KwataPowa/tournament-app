@@ -179,6 +179,7 @@ export function SwissRoundView({
                             teams={teams}
                             onPredict={onPredict}
                             onEdit={onEditMatch}
+                            isSwiss={true}
                         />
                     ))}
                 </div>

@@ -13,6 +13,7 @@ type LeagueMatchRowProps = {
     onEdit?: (match: Match) => void
     onChangeFormat?: (match: Match, format: MatchFormat) => void
     roundDate?: string
+    isSwiss?: boolean
 }
 
 const FORMAT_OPTIONS: MatchFormat[] = ['BO1', 'BO3', 'BO5', 'BO7']
@@ -27,6 +28,7 @@ export function LeagueMatchRow({
     onEdit,
     onChangeFormat,
     roundDate,
+    isSwiss = false,
 }: LeagueMatchRowProps) {
     const [showFormatMenu, setShowFormatMenu] = useState(false)
     const [showPredictions, setShowPredictions] = useState(false)
@@ -129,6 +131,11 @@ export function LeagueMatchRow({
                     <div className="flex items-center gap-2">
                         {match.start_time && (
                             <span className="font-mono text-cyan-400">
+                                {isSwiss && (
+                                    <span className="text-gray-400 mr-1">
+                                        {new Date(match.start_time).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                                    </span>
+                                )}
                                 {new Date(match.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                         )}
@@ -284,9 +291,16 @@ export function LeagueMatchRow({
 
                     {/* Time Display */}
                     {match.start_time && (
-                        <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20 whitespace-nowrap">
-                            {new Date(match.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                        <div className="flex flex-col items-center gap-0.5">
+                            {isSwiss && (
+                                <span className="text-[9px] font-mono text-gray-500">
+                                    {new Date(match.start_time).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                                </span>
+                            )}
+                            <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20 whitespace-nowrap">
+                                {new Date(match.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        </div>
                     )}
                 </div>
 
