@@ -1690,8 +1690,9 @@ export function TournamentDetailPage() {
               </Card>
             </div>
 
-            {/* Classement Joueurs - Sidebar (1/3) */}
-            <div className={`min-[1320px]:order-2 min-[1320px]:self-start ${mobileTab === 'standings' ? 'block' : 'hidden min-[1320px]:block'}`}>
+            {/* Sidebar - Classement Joueurs + Swiss Bracket (1/3) */}
+            <div className={`min-[1320px]:order-2 min-[1320px]:self-start space-y-4 ${mobileTab === 'standings' ? 'block' : 'hidden min-[1320px]:block'}`}>
+              {/* Classement Joueurs */}
               <Card>
                 <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                   <Trophy className="w-5 h-5 text-yellow-400" /> Classement Joueurs
@@ -1706,13 +1707,9 @@ export function TournamentDetailPage() {
                   compact
                 />
               </Card>
-            </div>
-          </div>
 
-          {/* Swiss Bracket - Same width as Rondes (2/3) */}
-          {swissConfig && (
-            <div className="grid grid-cols-1 min-[1320px]:grid-cols-3 gap-6">
-              <div className="min-[1320px]:col-span-2">
+              {/* Swiss Bracket */}
+              {swissConfig && (
                 <Card>
                   <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <Trophy className="w-5 h-5 text-violet-400" /> Swiss Bracket
@@ -1725,9 +1722,9 @@ export function TournamentDetailPage() {
                     currentRound={swissSelectedRound}
                   />
                 </Card>
-              </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       ) : (
         /* VUE LIGUE */
