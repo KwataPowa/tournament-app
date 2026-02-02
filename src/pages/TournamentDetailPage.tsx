@@ -1720,6 +1720,7 @@ export function TournamentDetailPage() {
                     opponentHistory={opponentHistory}
                     swissConfig={swissConfig}
                     currentRound={swissSelectedRound}
+                    compact
                   />
                 </Card>
               )}

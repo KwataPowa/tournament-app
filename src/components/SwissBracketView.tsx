@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import type { Match, Team, SwissConfig } from '../types'
 import { calculateSwissStandingsWithStatus, groupTeamsByRecord } from '../services/swiss'
-import { Trophy, X, Minus, ChevronRight } from 'lucide-react'
+import { Trophy, X, Minus } from 'lucide-react'
 
 type SwissBracketViewProps = {
   teams: Team[]
@@ -9,6 +9,7 @@ type SwissBracketViewProps = {
   opponentHistory: Record<string, string[]>
   swissConfig: SwissConfig
   currentRound: number
+  compact?: boolean // For sidebar display
 }
 
 export function SwissBracketView({
@@ -16,7 +17,8 @@ export function SwissBracketView({
   matches,
   opponentHistory,
   swissConfig,
-  currentRound: _currentRound
+  currentRound: _currentRound,
+  compact = false
 }: SwissBracketViewProps) {
 
   const standings = useMemo(() => {
@@ -41,29 +43,12 @@ export function SwissBracketView({
     return teams.find(t => t.name === teamName)?.logo
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'qualified': return 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
-      case 'eliminated': return 'bg-red-500/20 border-red-500/50 text-red-400'
-      case 'active': return 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400'
-      default: return 'bg-white/10 border-white/20 text-gray-400'
-    }
-  }
-
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'qualified': return <Trophy className="w-3 h-3" />
-      case 'eliminated': return <X className="w-3 h-3" />
-      case 'active': return <Minus className="w-3 h-3" />
+      case 'qualified': return <Trophy className="w-3 h-3 text-emerald-400" />
+      case 'eliminated': return <X className="w-3 h-3 text-red-400" />
+      case 'active': return <Minus className="w-3 h-3 text-cyan-400" />
       default: return null
-    }
-  }
-
-  const getPotentialColor = (potential: string) => {
-    switch (potential) {
-      case 'qualification': return 'text-emerald-400'
-      case 'elimination': return 'text-red-400'
-      default: return 'text-gray-400'
     }
   }
 
@@ -71,6 +56,85 @@ export function SwissBracketView({
   const activeCount = standings.filter(s => s.status === 'active').length
   const eliminatedCount = standings.filter(s => s.status === 'eliminated').length
 
+  // Compact sidebar view
+  if (compact) {
+    return (
+      <div className="space-y-3">
+        {/* Compact Summary - Inline */}
+        <div className="flex items-center justify-between text-xs px-1">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="text-emerald-400 font-bold">{qualifiedCount}</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-cyan-500" />
+            <span className="text-cyan-400 font-bold">{activeCount}</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-red-500" />
+            <span className="text-red-400 font-bold">{eliminatedCount}</span>
+          </span>
+        </div>
+
+        {/* Compact Buckets */}
+        <div className="space-y-2">
+          {buckets.map((bucket) => (
+            <div
+              key={bucket.record}
+              className={`
+                p-2 rounded-lg border
+                ${bucket.isQualified
+                  ? 'bg-emerald-500/5 border-emerald-500/30'
+                  : bucket.isEliminated
+                    ? 'bg-red-500/5 border-red-500/30'
+                    : 'bg-white/5 border-white/10'
+                }
+              `}
+            >
+              {/* Record Header */}
+              <div className="flex items-center justify-between mb-1.5">
+                <span className={`font-mono text-sm font-bold ${bucket.isQualified
+                    ? 'text-emerald-400'
+                    : bucket.isEliminated
+                      ? 'text-red-400'
+                      : 'text-cyan-400'
+                  }`}>
+                  {bucket.record}
+                </span>
+                <span className="text-[10px] text-gray-500">
+                  {bucket.teams.length} équipe{bucket.teams.length > 1 ? 's' : ''}
+                </span>
+              </div>
+
+              {/* Teams - Vertical List */}
+              <div className="space-y-1">
+                {bucket.teams.map(team => (
+                  <div
+                    key={team.team}
+                    className="flex items-center gap-2 text-xs"
+                  >
+                    {getTeamLogo(team.team) ? (
+                      <img
+                        src={getTeamLogo(team.team)}
+                        alt=""
+                        className="w-4 h-4 object-contain flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-4 h-4 rounded bg-white/10 flex-shrink-0" />
+                    )}
+                    <span className="text-gray-300 truncate flex-1">{team.team}</span>
+                    {getStatusIcon(team.status)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Full view (non-compact)
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
@@ -96,116 +160,56 @@ export function SwissBracketView({
       </div>
 
       {/* Swiss Bracket Tree */}
-      <div className="overflow-x-auto pb-4">
-        {/* Desktop View */}
-        <div className="hidden md:block min-w-max space-y-3">
-          {buckets.map((bucket) => (
-            <div
-              key={bucket.record}
-              className={`
-                flex items-center gap-4 p-4 rounded-xl border transition-all
-                ${bucket.isQualified
-                  ? 'bg-emerald-500/5 border-emerald-500/30'
+      <div className="space-y-2">
+        {buckets.map((bucket) => (
+          <div
+            key={bucket.record}
+            className={`
+              p-3 rounded-lg border
+              ${bucket.isQualified
+                ? 'bg-emerald-500/5 border-emerald-500/30'
+                : bucket.isEliminated
+                  ? 'bg-red-500/5 border-red-500/30'
+                  : 'bg-white/5 border-white/10'
+              }
+            `}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className={`font-mono font-bold ${bucket.isQualified
+                  ? 'text-emerald-400'
                   : bucket.isEliminated
-                    ? 'bg-red-500/5 border-red-500/30'
-                    : 'bg-white/5 border-white/10'
-                }
-              `}
-            >
-              {/* Record Badge */}
-              <div className={`
-                flex-shrink-0 w-20 text-center py-2 px-3 rounded-lg font-mono font-bold
-                ${bucket.isQualified
-                  ? 'bg-emerald-500/20 text-emerald-400'
-                  : bucket.isEliminated
-                    ? 'bg-red-500/20 text-red-400'
-                    : 'bg-cyan-500/20 text-cyan-400'
-                }
-              `}>
-                {bucket.record}
-              </div>
-
-              {/* Teams in this bucket */}
-              <div className="flex-1 flex flex-wrap gap-2">
-                {bucket.teams.map((team) => (
-                  <div
-                    key={team.team}
-                    className={`
-                      flex items-center gap-2 px-3 py-2 rounded-lg border
-                      ${getStatusColor(team.status)}
-                    `}
-                  >
-                    {getTeamLogo(team.team) && (
-                      <img
-                        src={getTeamLogo(team.team)}
-                        alt=""
-                        className="w-5 h-5 object-contain"
-                      />
-                    )}
-                    <span className="font-medium text-sm">{team.team}</span>
-                    <span className="opacity-70">
-                      {getStatusIcon(team.status)}
-                    </span>
-
-                    {/* Next match indicator */}
-                    {team.status === 'active' && team.nextMatchPotential !== 'neutral' && (
-                      <span className={`text-xs font-medium flex items-center gap-1 ${getPotentialColor(team.nextMatchPotential)}`}>
-                        <ChevronRight className="w-3 h-3" />
-                        {team.nextMatchPotential === 'qualification' ? 'Match Point' : 'Elimination Match'}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Bucket status badge */}
-              {bucket.isQualified && (
-                <div className="flex-shrink-0 px-3 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-medium rounded-full">
-                  Qualified
-                </div>
-              )}
-              {bucket.isEliminated && (
-                <div className="flex-shrink-0 px-3 py-1 bg-red-500/20 text-red-400 text-xs font-medium rounded-full">
-                  Eliminated
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Mobile View - Compact */}
-        <div className="md:hidden space-y-2">
-          {buckets.map((bucket) => (
-            <div key={bucket.record} className="p-3 bg-white/5 border border-white/10 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className={`font-mono font-bold ${
-                  bucket.isQualified
-                    ? 'text-emerald-400'
-                    : bucket.isEliminated
-                      ? 'text-red-400'
-                      : 'text-cyan-400'
+                    ? 'text-red-400'
+                    : 'text-cyan-400'
                 }`}>
-                  {bucket.record}
-                </span>
-                {bucket.isQualified && <Trophy className="w-4 h-4 text-emerald-400" />}
-                {bucket.isEliminated && <X className="w-4 h-4 text-red-400" />}
-              </div>
-              <div className="space-y-1">
-                {bucket.teams.map(team => (
-                  <div key={team.team} className="text-sm text-gray-300 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {getTeamLogo(team.team) && (
-                        <img src={getTeamLogo(team.team)} alt="" className="w-4 h-4 object-contain" />
-                      )}
-                      <span>{team.team}</span>
-                    </div>
-                    {getStatusIcon(team.status)}
-                  </div>
-                ))}
-              </div>
+                {bucket.record}
+              </span>
+              {bucket.isQualified && <Trophy className="w-4 h-4 text-emerald-400" />}
+              {bucket.isEliminated && <X className="w-4 h-4 text-red-400" />}
             </div>
-          ))}
-        </div>
+            <div className="flex flex-wrap gap-1.5">
+              {bucket.teams.map(team => (
+                <div
+                  key={team.team}
+                  className={`
+                    flex items-center gap-1.5 px-2 py-1 rounded text-xs
+                    ${team.status === 'qualified'
+                      ? 'bg-emerald-500/20 text-emerald-300'
+                      : team.status === 'eliminated'
+                        ? 'bg-red-500/20 text-red-300'
+                        : 'bg-white/10 text-gray-300'
+                    }
+                  `}
+                >
+                  {getTeamLogo(team.team) && (
+                    <img src={getTeamLogo(team.team)} alt="" className="w-4 h-4 object-contain" />
+                  )}
+                  <span className="truncate max-w-[100px]">{team.team}</span>
+                  {getStatusIcon(team.status)}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Legend */}
