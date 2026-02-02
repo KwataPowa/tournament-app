@@ -395,11 +395,13 @@ export function MatchEditModal({
       return
     }
 
-    // Vérification des doublons
-    const duplicateError = isDuplicateMatch(teamA, teamB)
-    if (duplicateError) {
-      setError(duplicateError)
-      return
+    // Vérification des doublons (sauf pour Swiss où les rematches sont possibles)
+    if (!isSwiss) {
+      const duplicateError = isDuplicateMatch(teamA, teamB)
+      if (duplicateError) {
+        setError(duplicateError)
+        return
+      }
     }
 
     setLoading(true)
