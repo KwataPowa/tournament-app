@@ -1958,7 +1958,7 @@ export function TournamentDetailPage() {
           roundDates={tournament?.round_dates || {}}
           onSave={handleSaveMatch}
           onSaveResult={handleSaveResult}
-          onDelete={editingMatch && !isBracketFormat && !isSwissFormat ? handleDeleteMatch : undefined}
+          onDelete={editingMatch && !isBracketFormat ? handleDeleteMatch : undefined}
           onClose={closeModal}
         />
       )}
