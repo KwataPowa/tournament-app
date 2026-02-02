@@ -181,7 +181,7 @@ export function LeagueMatchRow({
                 </div>
 
                 {/* Prediction / Actions */}
-                <div className="pt-2 border-t border-white/5">
+                <div className="pt-2 border-t border-white/5 space-y-2">
                     {prediction ? (
                         <button
                             onClick={(e) => {
@@ -249,6 +249,20 @@ export function LeagueMatchRow({
                     )}
                     {hasResult && !prediction && (
                         <div className="text-center text-xs text-gray-500 py-1">Match terminé</div>
+                    )}
+
+                    {/* View Predictions Button (Mobile - After Result) */}
+                    {hasResult && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                setShowPredictions(true)
+                            }}
+                            className="w-full py-2.5 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white text-sm flex items-center justify-center gap-2 transition-all"
+                        >
+                            <Eye className="w-4 h-4" />
+                            Voir les pronostics
+                        </button>
                     )}
                 </div>
             </div>

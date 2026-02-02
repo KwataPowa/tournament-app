@@ -333,11 +333,11 @@ export function MatchEditModal({
       // Determine Base Date
       let baseDate: Date
 
-      if (isSwiss && dateValue) {
-        // Swiss: use individual match date
+      if ((isSwiss || isBracket) && dateValue) {
+        // Swiss/Bracket: use individual match date
         baseDate = new Date(dateValue)
       } else {
-        // League/Bracket: use round date or fallback
+        // League: use round date or fallback
         const roundDateStr = roundDates[round.toString()]
         if (roundDateStr) {
           baseDate = new Date(roundDateStr)
@@ -659,55 +659,65 @@ export function MatchEditModal({
                   </div>
                 )}
 
-                {/* Round (ligue) and Format - Readonly in Edit */}
-                {isEdit && (isBracket || isSwiss) ? (
-                  <div className="flex items-center justify-between px-4 py-3 bg-white/5 rounded-lg text-sm text-gray-400">
-                    <span>{isSwiss ? 'Ronde' : 'Journée'} {round}</span>
-                    <span>Format {matchFormat}</span>
-                  </div>
-                ) : (
-                  <div className={`grid gap-4 ${isBracket ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
-                    {!isBracket && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                          {isSwiss ? 'Ronde' : 'Journée'}
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max={maxRound + 10}
-                          value={round}
-                          onChange={(e) => setRound(parseInt(e.target.value) || 1)}
-                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-mono transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-                        />
-                      </div>
-                    )}
-
+                {/* Round (ligue) and Format */}
+                <div className={`grid gap-4 ${isBracket ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
+                  {/* Round Selection */}
+                  {!isBracket && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Format
-                      </label>
-                      <div className="flex gap-2">
-                        {MATCH_FORMATS.map(({ value, label }) => (
-                          <button
-                            key={value}
-                            type="button"
-                            onClick={() => setMatchFormat(value)}
-                            className={`
-                        flex-1 py-3 px-2 rounded-lg font-mono font-semibold text-sm transition-all duration-200
-                        ${matchFormat === value
-                                ? 'bg-violet-500/20 border-2 border-violet-500 text-violet-400'
-                                : 'bg-white/5 border-2 border-white/10 text-gray-400 hover:border-white/20 hover:text-gray-200'
-                              }
-                      `}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
+                      {isEdit && isSwiss ? (
+                        /* Swiss Edit: Read-only Round */
+                        <div className="flex flex-col gap-2">
+                          <label className="block text-sm font-medium text-gray-300">
+                            {isSwiss ? 'Ronde' : 'Journée'}
+                          </label>
+                          <div className="px-4 py-3 bg-white/5 rounded-xl border border-white/10 text-gray-400 font-mono">
+                            {round}
+                          </div>
+                        </div>
+                      ) : (
+                        /* Normal Edit/Create: Editable Round */
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                            {isSwiss ? 'Ronde' : 'Journée'}
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max={maxRound + 10}
+                            value={round}
+                            onChange={(e) => setRound(parseInt(e.target.value) || 1)}
+                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-mono transition-all duration-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Format Selection - Always Editable */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Format
+                    </label>
+                    <div className="flex gap-2">
+                      {MATCH_FORMATS.map(({ value, label }) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setMatchFormat(value)}
+                          className={`
+                      flex-1 py-3 px-2 rounded-lg font-mono font-semibold text-sm transition-all duration-200
+                      ${matchFormat === value
+                              ? 'bg-violet-500/20 border-2 border-violet-500 text-violet-400'
+                              : 'bg-white/5 border-2 border-white/10 text-gray-400 hover:border-white/20 hover:text-gray-200'
+                            }
+                    `}
+                        >
+                          {label}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                )}
+                </div>
 
                 {/* Date & Time */}
                 <div className="space-y-3">
@@ -715,8 +725,8 @@ export function MatchEditModal({
                     Date et horaire du match
                   </label>
 
-                  {isSwiss ? (
-                    /* Swiss: date et heure individuelles */
+                  {isSwiss || isBracket ? (
+                    /* Swiss/Bracket: date et heure individuelles */
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">Date</label>
@@ -738,7 +748,7 @@ export function MatchEditModal({
                       </div>
                     </div>
                   ) : (
-                    /* League/Bracket: date par round, heure individuelle */
+                    /* League: date par round, heure individuelle */
                     <>
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-xs text-cyan-400 font-mono">
