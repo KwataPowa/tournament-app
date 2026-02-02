@@ -5,6 +5,43 @@ import { ChevronLeft, ChevronRight, Shuffle, CheckCircle2, Clock, Plus } from 'l
 import { Button } from './ui/Button'
 import { isSwissRoundComplete } from '../services/swiss'
 
+// Calculate team records before a specific round
+function getTeamRecordsBeforeRound(
+    matches: Match[],
+    targetRound: number
+): Record<string, { wins: number; losses: number }> {
+    const records: Record<string, { wins: number; losses: number }> = {}
+
+    // Count wins/losses from matches before the target round
+    matches
+        .filter(m => m.round < targetRound && m.result && !m.is_bye)
+        .forEach(m => {
+            const winner = m.result?.winner
+            const loser = winner === m.team_a ? m.team_b : m.team_a
+
+            if (winner) {
+                records[winner] = records[winner] || { wins: 0, losses: 0 }
+                records[winner].wins += 1
+            }
+            if (loser) {
+                records[loser] = records[loser] || { wins: 0, losses: 0 }
+                records[loser].losses += 1
+            }
+        })
+
+    return records
+}
+
+// Get the match bucket string (e.g., "1-0 vs 1-0")
+function getMatchBucket(
+    match: Match,
+    records: Record<string, { wins: number; losses: number }>
+): string {
+    const recordA = records[match.team_a] || { wins: 0, losses: 0 }
+    const recordB = records[match.team_b] || { wins: 0, losses: 0 }
+    return `${recordA.wins}-${recordA.losses} vs ${recordB.wins}-${recordB.losses}`
+}
+
 type SwissRoundViewProps = {
     matches: Match[]
     predictions: Prediction[]
@@ -60,6 +97,11 @@ export function SwissRoundView({
                 // Tri par ordre de création (chronologique)
                 return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
             })
+    }, [matches, currentRound])
+
+    // Calculate team records before current round (for match bucket display)
+    const teamRecordsBeforeRound = useMemo(() => {
+        return getTeamRecordsBeforeRound(matches, currentRound)
     }, [matches, currentRound])
 
     // Check if current round is complete
@@ -180,6 +222,7 @@ export function SwissRoundView({
                             onPredict={onPredict}
                             onEdit={onEditMatch}
                             isSwiss={true}
+                            matchBucket={getMatchBucket(match, teamRecordsBeforeRound)}
                         />
                     ))}
                 </div>

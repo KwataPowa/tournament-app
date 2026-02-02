@@ -14,6 +14,7 @@ type LeagueMatchRowProps = {
     onChangeFormat?: (match: Match, format: MatchFormat) => void
     roundDate?: string
     isSwiss?: boolean
+    matchBucket?: string  // e.g., "1-0 vs 1-0" for Swiss
 }
 
 const FORMAT_OPTIONS: MatchFormat[] = ['BO1', 'BO3', 'BO5', 'BO7']
@@ -29,6 +30,7 @@ export function LeagueMatchRow({
     onChangeFormat,
     roundDate,
     isSwiss = false,
+    matchBucket,
 }: LeagueMatchRowProps) {
     const [showFormatMenu, setShowFormatMenu] = useState(false)
     const [showPredictions, setShowPredictions] = useState(false)
@@ -142,6 +144,11 @@ export function LeagueMatchRow({
                         <span className="font-mono bg-white/5 px-1.5 py-0.5 rounded">
                             {match.match_format || 'BO3'}
                         </span>
+                        {matchBucket && (
+                            <span className="font-mono text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded border border-violet-500/20">
+                                {matchBucket}
+                            </span>
+                        )}
                     </div>
                     {isStarted && !hasResult && (
                         <span className="text-[10px] uppercase font-bold text-red-400 animate-pulse whitespace-nowrap">En cours</span>
@@ -301,6 +308,13 @@ export function LeagueMatchRow({
                                 {new Date(match.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                         </div>
+                    )}
+
+                    {/* Match Bucket (Swiss) */}
+                    {matchBucket && (
+                        <span className="text-[10px] font-mono text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded border border-violet-500/20 whitespace-nowrap">
+                            {matchBucket}
+                        </span>
                     )}
                 </div>
 
