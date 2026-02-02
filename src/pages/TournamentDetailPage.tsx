@@ -21,7 +21,7 @@ import { StageSettingsModal } from '../components/StageSettingsModal'
 import { StageSeedingModal } from '../components/StageSeedingModal'
 import { BracketView } from '../components/bracket'
 import { generateBracket, nextPowerOf2 } from '../services/brackets'
-import { calculateSwissStandings, generateSwissPairings, generateSwissRound, updateOpponentHistory, getTeamsWithBye } from '../services/swiss'
+import { calculateSwissStandings, generateSwissPairings, generateSwissRound, updateOpponentHistory, getTeamsWithBye, isSwissRoundComplete } from '../services/swiss'
 import type { SwissConfig } from '../types'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -201,12 +201,14 @@ export function TournamentDetailPage() {
   const [selectedRound, setSelectedRound] = useState<number>(1)
   // State for Swiss round
   const [swissSelectedRound, setSwissSelectedRound] = useState<number>(1)
+  const swissRoundInitializedRef = useRef(false) // Track if Swiss round has been initialized
   const [isGeneratingSwissRound, setIsGeneratingSwissRound] = useState(false)
   const [showSwissPairingAssistant, setShowSwissPairingAssistant] = useState(false)
   const [swissPairingRound, setSwissPairingRound] = useState<number>(1)
   // State for mobile tabs (matches vs standings vs infos)
   const [mobileTab, setMobileTab] = useState<'matches' | 'standings' | 'infos'>('matches')
   const tabsRef = useRef<HTMLDivElement>(null)
+
 
   // Ref for the round selector container
   const roundsScrollRef = useRef<HTMLDivElement>(null)
@@ -334,6 +336,31 @@ export function TournamentDetailPage() {
     const timer = setTimeout(checkAndScroll, 100)
     return () => clearTimeout(timer)
   }, [hasDeepLink, loading, matches.length, selectedRound, urlMatchId, setSearchParams])
+
+  // Initialize Swiss round to the first active round
+  useEffect(() => {
+    if (swissRoundInitializedRef.current || !isSwissFormat || !swissConfig || matches.length === 0) return
+
+    // Find the max round that currently has matches
+    const maxGeneratedRound = matches.reduce((max, m) => Math.max(max, m.round), 0)
+
+    // Find the first round that is NOT complete
+    let targetRound = 1
+    for (let r = 1; r <= maxGeneratedRound; r++) {
+      if (!isSwissRoundComplete(matches, r)) {
+        targetRound = r
+        break
+      }
+      // If this round is complete, and it's the last generated round,
+      // we probably want to show the NEXT round (to generate it)
+      if (r === maxGeneratedRound && r < (swissConfig.total_rounds || 5)) {
+        targetRound = r + 1
+      }
+    }
+
+    setSwissSelectedRound(targetRound)
+    swissRoundInitializedRef.current = true
+  }, [isSwissFormat, matches, swissConfig])
 
   // Utiliser les équipes du tournoi (normalisées pour rétrocompatibilité)
   const teams = normalizeTeams(tournament?.teams as (string | { name: string; logo?: string })[])
