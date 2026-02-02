@@ -104,6 +104,33 @@ export function SwissRoundView({
         return getTeamRecordsBeforeRound(matches, currentRound)
     }, [matches, currentRound])
 
+    // Group matches by bucket for visual separation
+    const matchesByBucket = useMemo(() => {
+        const groups: { bucket: string; matches: typeof roundMatches }[] = []
+        const bucketMap = new Map<string, typeof roundMatches>()
+
+        roundMatches.forEach(match => {
+            const bucket = getMatchBucket(match, teamRecordsBeforeRound)
+            if (!bucketMap.has(bucket)) {
+                bucketMap.set(bucket, [])
+            }
+            bucketMap.get(bucket)!.push(match)
+        })
+
+        // Sort buckets: higher combined wins first (e.g., "2-0 vs 2-0" before "1-1 vs 1-1")
+        const sortedBuckets = Array.from(bucketMap.entries()).sort((a, b) => {
+            const [winsA] = a[0].split(' vs ')[0].split('-').map(Number)
+            const [winsB] = b[0].split(' vs ')[0].split('-').map(Number)
+            return winsB - winsA // Higher wins first
+        })
+
+        sortedBuckets.forEach(([bucket, matches]) => {
+            groups.push({ bucket, matches })
+        })
+
+        return groups
+    }, [roundMatches, teamRecordsBeforeRound])
+
     // Check if current round is complete
     const isCurrentRoundComplete = useMemo(() => {
         return isSwissRoundComplete(matches, currentRound)
@@ -208,22 +235,46 @@ export function SwissRoundView({
                 />
             </div>
 
-            {/* Match List */}
+            {/* Match List - Grouped by Bucket */}
             {roundMatches.length > 0 ? (
-                <div className="space-y-2">
-                    {roundMatches.map(match => (
-                        <LeagueMatchRow
-                            key={match.id}
-                            match={match}
-                            prediction={predictions.find(p => p.match_id === match.id)}
-                            isAdmin={isAdmin}
-                            tournamentStatus={tournamentStatus}
-                            teams={teams}
-                            onPredict={onPredict}
-                            onEdit={onEditMatch}
-                            isSwiss={true}
-                            matchBucket={getMatchBucket(match, teamRecordsBeforeRound)}
-                        />
+                <div className="space-y-6">
+                    {matchesByBucket.map(({ bucket, matches: bucketMatches }, idx) => (
+                        <div key={bucket} className="space-y-2">
+                            {/* Bucket Header */}
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-lg">
+                                    <span className="text-sm font-mono font-bold text-violet-400">
+                                        {bucket}
+                                    </span>
+                                </div>
+                                <div className="flex-1 h-px bg-gradient-to-r from-violet-500/30 to-transparent" />
+                                <span className="text-xs text-gray-500">
+                                    {bucketMatches.length} match{bucketMatches.length > 1 ? 's' : ''}
+                                </span>
+                            </div>
+
+                            {/* Matches in this bucket */}
+                            <div className="space-y-2 pl-2 border-l-2 border-violet-500/20">
+                                {bucketMatches.map(match => (
+                                    <LeagueMatchRow
+                                        key={match.id}
+                                        match={match}
+                                        prediction={predictions.find(p => p.match_id === match.id)}
+                                        isAdmin={isAdmin}
+                                        tournamentStatus={tournamentStatus}
+                                        teams={teams}
+                                        onPredict={onPredict}
+                                        onEdit={onEditMatch}
+                                        isSwiss={true}
+                                    />
+                                ))}
+                            </div>
+
+                            {/* Separator between buckets */}
+                            {idx < matchesByBucket.length - 1 && (
+                                <div className="pt-2" />
+                            )}
+                        </div>
                     ))}
                 </div>
             ) : (
