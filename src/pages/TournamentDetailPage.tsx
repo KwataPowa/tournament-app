@@ -1709,20 +1709,24 @@ export function TournamentDetailPage() {
             </div>
           </div>
 
-          {/* Swiss Bracket - Full Width Below */}
+          {/* Swiss Bracket - Same width as Rondes (2/3) */}
           {swissConfig && (
-            <Card>
-              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-violet-400" /> Swiss Bracket
-              </h2>
-              <SwissBracketView
-                teams={teams}
-                matches={stageMatches}
-                opponentHistory={opponentHistory}
-                swissConfig={swissConfig}
-                currentRound={swissSelectedRound}
-              />
-            </Card>
+            <div className="grid grid-cols-1 min-[1320px]:grid-cols-3 gap-6">
+              <div className="min-[1320px]:col-span-2">
+                <Card>
+                  <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-violet-400" /> Swiss Bracket
+                  </h2>
+                  <SwissBracketView
+                    teams={teams}
+                    matches={stageMatches}
+                    opponentHistory={opponentHistory}
+                    swissConfig={swissConfig}
+                    currentRound={swissSelectedRound}
+                  />
+                </Card>
+              </div>
+            </div>
           )}
         </div>
       ) : (
