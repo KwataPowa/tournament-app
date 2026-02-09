@@ -389,6 +389,7 @@ export async function generateDoubleEliminationBracket(
         target_slot_winner: targetSlotWinner,
         is_bye: false,
         match_format: matchFormat,
+        stage_id: stageId
       })
     }
   }

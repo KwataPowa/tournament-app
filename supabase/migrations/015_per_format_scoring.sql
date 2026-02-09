@@ -3,7 +3,10 @@
 -- Permet de configurer des points differents par format de match (BO1/BO3/BO5/BO7)
 -- ============================================
 
--- 1. Mise a jour de calculate_prediction_points pour supporter le match_format
+-- 1. Supprimer l'ancienne version (5 params) pour eviter la surcharge ambigue
+DROP FUNCTION IF EXISTS calculate_prediction_points(TEXT, TEXT, TEXT, TEXT, JSONB);
+
+-- 2. Creer la nouvelle version avec match_format
 CREATE OR REPLACE FUNCTION calculate_prediction_points(
     p_predicted_winner TEXT,
     p_predicted_score TEXT,
@@ -51,7 +54,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
--- 2. Mise a jour du trigger pour passer match_format
+-- 3. Mise a jour du trigger pour passer match_format
 CREATE OR REPLACE FUNCTION update_prediction_points()
 RETURNS TRIGGER
 SECURITY DEFINER
@@ -83,6 +86,7 @@ BEGIN
         WHERE match_id = NEW.id;
 
         -- Update participant total points for ALL participants in the tournament
+        -- Formula: Sum of prediction points + bonus_points
         UPDATE participants p
         SET total_points = (
             SELECT COALESCE(SUM(pr.points_earned), 0)
@@ -90,7 +94,7 @@ BEGIN
             JOIN matches m ON pr.match_id = m.id
             WHERE m.tournament_id = NEW.tournament_id
             AND pr.user_id = p.user_id
-        )
+        ) + p.bonus_points
         WHERE p.tournament_id = NEW.tournament_id;
 
         -- Update ranks
@@ -112,7 +116,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 3. Mise a jour de recalculate_tournament_points pour passer match_format
+-- 4. Mise a jour de recalculate_tournament_points pour passer match_format
 CREATE OR REPLACE FUNCTION recalculate_tournament_points(
     p_tournament_id UUID
 )
@@ -160,6 +164,7 @@ BEGIN
     END LOOP;
 
     -- 3. Recalculate total points for all participants
+    -- Formula: Sum of prediction points + bonus_points
     UPDATE participants p
     SET total_points = (
         SELECT COALESCE(SUM(pr.points_earned), 0)
@@ -167,7 +172,7 @@ BEGIN
         JOIN matches m ON pr.match_id = m.id
         WHERE m.tournament_id = p_tournament_id
         AND pr.user_id = p.user_id
-    )
+    ) + p.bonus_points
     WHERE p.tournament_id = p_tournament_id;
 
     -- 4. Recalculate ranks
@@ -187,7 +192,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 4. Mise a jour de update_match_result_recursive pour passer match_format
+-- 5. Mise a jour de update_match_result_recursive pour passer match_format
 CREATE OR REPLACE FUNCTION update_match_result_recursive(
     p_match_id UUID,
     p_new_winner TEXT,
@@ -321,6 +326,7 @@ BEGIN
     END IF;
 
     -- 9. Recalculer les totaux des participants
+    -- Formula: Sum of prediction points + bonus_points
     UPDATE participants p
     SET total_points = (
         SELECT COALESCE(SUM(pr.points_earned), 0)
@@ -328,7 +334,7 @@ BEGIN
         JOIN matches m ON pr.match_id = m.id
         WHERE m.tournament_id = v_match.tournament_id
         AND pr.user_id = p.user_id
-    )
+    ) + p.bonus_points
     WHERE p.tournament_id = v_match.tournament_id;
 
     -- 10. Recalculer les rangs

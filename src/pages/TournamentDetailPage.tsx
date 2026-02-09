@@ -1219,7 +1219,7 @@ export function TournamentDetailPage() {
               <span className="w-1 h-1 rounded-full bg-gray-600"></span>
               <span>
                 {isBracketFormat
-                  ? (tournament.format === 'single_elimination' ? 'Élimination Simple' : 'Double Élimination')
+                  ? ((activeStage?.type ?? tournament.format) === 'single_elimination' ? 'Élimination Simple' : 'Double Élimination')
                   : (tournament.home_and_away ? 'Aller-retour' : 'Aller simple')
                 }
               </span>
@@ -1376,10 +1376,13 @@ export function TournamentDetailPage() {
                       try {
                         const updated = await updateStage(activeStage.id, { scoring_rules: pointsForm })
                         setStages(prev => prev.map(s => s.id === activeStage.id ? updated : s))
-                        await recalculateTournamentPoints(tournament.id)
-                        loadLeaderboard()
                         setIsEditingPoints(false)
+                        // Recalcul en arriere-plan (non-bloquant)
+                        recalculateTournamentPoints(tournament.id)
+                          .then(() => loadLeaderboard())
+                          .catch(err => console.error("Erreur recalcul points:", err))
                       } catch (err) {
+                        console.error("Erreur sauvegarde règles phase:", err)
                         alert("Erreur sauvegarde règles phase")
                       } finally {
                         setActionLoading(false)
