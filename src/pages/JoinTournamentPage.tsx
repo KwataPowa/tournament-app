@@ -196,6 +196,19 @@ export function JoinTournamentPage() {
                   </span>
                 </div>
               </div>
+              {foundTournament.scoring_rules.per_format && Object.keys(foundTournament.scoring_rules.per_format).length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-white/5">
+                  {Object.entries(foundTournament.scoring_rules.per_format).map(([fmt, ov]) => {
+                    const w = (ov as { correct_winner_points?: number; exact_score_bonus?: number }).correct_winner_points ?? foundTournament.scoring_rules.correct_winner_points
+                    const s = (ov as { correct_winner_points?: number; exact_score_bonus?: number }).exact_score_bonus ?? foundTournament.scoring_rules.exact_score_bonus
+                    return (
+                      <span key={fmt} className="text-xs px-2 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 font-mono">
+                        {fmt}: {w}+{s}
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {alreadyParticipant ? (

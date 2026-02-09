@@ -117,7 +117,7 @@ export function TournamentDetailPage() {
 
   // Points editing state
   const [isEditingPoints, setIsEditingPoints] = useState(false)
-  const [pointsForm, setPointsForm] = useState({ correct_winner_points: 0, exact_score_bonus: 0 })
+  const [pointsForm, setPointsForm] = useState<ScoringRules>({ correct_winner_points: 0, exact_score_bonus: 0 })
 
   // Predictions state
   const [predictions, setPredictions] = useState<Prediction[]>([])
@@ -1487,6 +1487,99 @@ export function TournamentDetailPage() {
               </>
             )}
           </div>
+          {/* Per-format overrides display */}
+          {effectiveRules.per_format && Object.keys(effectiveRules.per_format).length > 0 && !isEditingPoints && (
+            <div className="mt-2 pt-2 border-t border-white/5">
+              <div className="flex flex-wrap gap-2">
+                {(Object.entries(effectiveRules.per_format) as [MatchFormat, { correct_winner_points?: number; exact_score_bonus?: number }][]).map(([fmt, ov]) => {
+                  const w = ov.correct_winner_points ?? effectiveRules.correct_winner_points
+                  const s = ov.exact_score_bonus ?? effectiveRules.exact_score_bonus
+                  return (
+                    <span key={fmt} className="text-xs px-2 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 font-mono">
+                      {fmt}: {w}+{s}
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          {/* Per-format editing */}
+          {isEditingPoints && (
+            <div className="mt-2 pt-2 border-t border-white/5">
+              <label className="flex items-center gap-2 cursor-pointer mb-2">
+                <input
+                  type="checkbox"
+                  checked={!!pointsForm.per_format && Object.keys(pointsForm.per_format).length > 0}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setPointsForm(prev => ({ ...prev, per_format: prev.per_format || {} }))
+                    } else {
+                      const { per_format: _, ...rest } = pointsForm
+                      setPointsForm(rest as ScoringRules)
+                    }
+                  }}
+                  className="w-3.5 h-3.5 rounded accent-violet-500"
+                />
+                <span className="text-xs text-gray-400">Par format</span>
+              </label>
+              {pointsForm.per_format !== undefined && (
+                <div className="grid grid-cols-2 gap-1.5">
+                  {(['BO1', 'BO3', 'BO5', 'BO7'] as MatchFormat[]).map(fmt => {
+                    const ov = pointsForm.per_format?.[fmt]
+                    return (
+                      <div key={fmt} className="flex items-center gap-1 text-xs">
+                        <span className="text-gray-500 w-7">{fmt}</span>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder={String(pointsForm.correct_winner_points)}
+                          value={ov?.correct_winner_points ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setPointsForm(prev => {
+                              const pf = { ...prev.per_format }
+                              const cur = pf[fmt] || {}
+                              if (val === '') {
+                                const { correct_winner_points: _, ...rest } = cur
+                                if (Object.keys(rest).length === 0) delete pf[fmt]
+                                else pf[fmt] = rest
+                              } else {
+                                pf[fmt] = { ...cur, correct_winner_points: parseInt(val) || 0 }
+                              }
+                              return { ...prev, per_format: pf }
+                            })
+                          }}
+                          className="w-10 bg-black/30 border border-white/10 rounded px-1 py-0.5 text-center font-mono text-violet-400 focus:border-violet-500/50 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-gray-700"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder={String(pointsForm.exact_score_bonus)}
+                          value={ov?.exact_score_bonus ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setPointsForm(prev => {
+                              const pf = { ...prev.per_format }
+                              const cur = pf[fmt] || {}
+                              if (val === '') {
+                                const { exact_score_bonus: _, ...rest } = cur
+                                if (Object.keys(rest).length === 0) delete pf[fmt]
+                                else pf[fmt] = rest
+                              } else {
+                                pf[fmt] = { ...cur, exact_score_bonus: parseInt(val) || 0 }
+                              }
+                              return { ...prev, per_format: pf }
+                            })
+                          }}
+                          className="w-10 bg-black/30 border border-white/10 rounded px-1 py-0.5 text-center font-mono text-cyan-400 focus:border-cyan-500/50 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-gray-700"
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </Card>
 
 

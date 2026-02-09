@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Trophy, Save, Trash2, AlertTriangle, Settings } from 'lucide-react'
 import { Button } from './ui/Button'
-import type { Stage, ScoringRules } from '../types'
+import type { Stage, ScoringRules, MatchFormat } from '../types'
 
 interface StageSettingsModalProps {
     stage: Stage
@@ -156,6 +156,80 @@ export function StageSettingsModal({ stage, onSave, onDelete, onClose }: StageSe
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/* Per-format overrides */}
+                                    <label className="flex items-center gap-2 cursor-pointer mt-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={!!rules.per_format && Object.keys(rules.per_format).length > 0}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setRules(prev => ({ ...prev, per_format: prev.per_format || {} }))
+                                                } else {
+                                                    const { per_format: _, ...rest } = rules
+                                                    setRules(rest as ScoringRules)
+                                                }
+                                            }}
+                                            className="w-3.5 h-3.5 rounded accent-violet-500"
+                                        />
+                                        <span className="text-xs text-gray-400">Points differents par format (BO1/BO3/BO5/BO7)</span>
+                                    </label>
+                                    {rules.per_format !== undefined && (
+                                        <div className="grid grid-cols-2 gap-2 mt-2">
+                                            {(['BO1', 'BO3', 'BO5', 'BO7'] as MatchFormat[]).map(fmt => {
+                                                const ov = rules.per_format?.[fmt]
+                                                return (
+                                                    <div key={fmt} className="flex items-center gap-1.5 text-xs">
+                                                        <span className="text-gray-500 w-8 font-mono">{fmt}</span>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            placeholder={String(rules.correct_winner_points)}
+                                                            value={ov?.correct_winner_points ?? ''}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value
+                                                                setRules(prev => {
+                                                                    const pf = { ...prev.per_format }
+                                                                    const cur = pf[fmt] || {}
+                                                                    if (val === '') {
+                                                                        const { correct_winner_points: _, ...rest } = cur
+                                                                        if (Object.keys(rest).length === 0) delete pf[fmt]
+                                                                        else pf[fmt] = rest
+                                                                    } else {
+                                                                        pf[fmt] = { ...cur, correct_winner_points: parseInt(val) || 0 }
+                                                                    }
+                                                                    return { ...prev, per_format: pf }
+                                                                })
+                                                            }}
+                                                            className="w-14 bg-black/30 border border-white/10 rounded-lg px-2 py-1.5 text-center font-mono text-violet-400 focus:border-violet-500/50 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-gray-700"
+                                                        />
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            placeholder={String(rules.exact_score_bonus)}
+                                                            value={ov?.exact_score_bonus ?? ''}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value
+                                                                setRules(prev => {
+                                                                    const pf = { ...prev.per_format }
+                                                                    const cur = pf[fmt] || {}
+                                                                    if (val === '') {
+                                                                        const { exact_score_bonus: _, ...rest } = cur
+                                                                        if (Object.keys(rest).length === 0) delete pf[fmt]
+                                                                        else pf[fmt] = rest
+                                                                    } else {
+                                                                        pf[fmt] = { ...cur, exact_score_bonus: parseInt(val) || 0 }
+                                                                    }
+                                                                    return { ...prev, per_format: pf }
+                                                                })
+                                                            }}
+                                                            className="w-14 bg-black/30 border border-white/10 rounded-lg px-2 py-1.5 text-center font-mono text-cyan-400 focus:border-cyan-500/50 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-gray-700"
+                                                        />
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="h-px bg-white/10" />

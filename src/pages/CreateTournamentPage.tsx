@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
-import type { ScoringRules, Team, TournamentFormat, MatchFormat } from '../types'
+import type { ScoringRules, Team, TournamentFormat, MatchFormat, FormatScoringOverride } from '../types'
 import {
   Trophy,
   FileText,
@@ -63,6 +63,23 @@ export function CreateTournamentPage() {
   ])
   const [correctWinnerPoints, setCorrectWinnerPoints] = useState('1')
   const [exactScoreBonus, setExactScoreBonus] = useState('1')
+  const [perFormatEnabled, setPerFormatEnabled] = useState(false)
+  const [perFormatOverrides, setPerFormatOverrides] = useState<Partial<Record<MatchFormat, { winner: string; score: string }>>>({})
+
+  const allFormats: MatchFormat[] = ['BO1', 'BO3', 'BO5', 'BO7']
+
+  const updateFormatOverride = (fmt: MatchFormat, field: 'winner' | 'score', value: string) => {
+    setPerFormatOverrides(prev => {
+      const current = prev[fmt] || { winner: '', score: '' }
+      const updated = { ...current, [field]: value }
+      // Si les deux champs sont vides, supprimer l'override
+      if (!updated.winner && !updated.score) {
+        const { [fmt]: _, ...rest } = prev
+        return rest
+      }
+      return { ...prev, [fmt]: updated }
+    })
+  }
 
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -189,6 +206,22 @@ export function CreateTournamentPage() {
       const scoringRules: ScoringRules = {
         correct_winner_points: parseInt(correctWinnerPoints, 10),
         exact_score_bonus: parseInt(exactScoreBonus, 10),
+      }
+
+      // Ajouter les overrides per-format si activees
+      if (perFormatEnabled && Object.keys(perFormatOverrides).length > 0) {
+        const perFormat: ScoringRules['per_format'] = {}
+        for (const [fmt, vals] of Object.entries(perFormatOverrides)) {
+          const override: FormatScoringOverride = {}
+          if (vals.winner) override.correct_winner_points = parseInt(vals.winner, 10)
+          if (vals.score) override.exact_score_bonus = parseInt(vals.score, 10)
+          if (Object.keys(override).length > 0) {
+            perFormat[fmt as MatchFormat] = override
+          }
+        }
+        if (Object.keys(perFormat).length > 0) {
+          scoringRules.per_format = perFormat
+        }
       }
 
       const tournament = await createTournament({
@@ -1012,12 +1045,101 @@ export function CreateTournamentPage() {
             </div>
           </div>
 
+          {/* Toggle per-format */}
+          <div className="mt-6">
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={perFormatEnabled}
+                  onChange={(e) => {
+                    setPerFormatEnabled(e.target.checked)
+                    if (!e.target.checked) setPerFormatOverrides({})
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-white/10 rounded-full peer-checked:bg-violet-600 transition-colors" />
+                <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform peer-checked:translate-x-4" />
+              </div>
+              <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
+                Personnaliser les points par format (BO1, BO3, BO5, BO7)
+              </span>
+            </label>
+          </div>
+
+          {/* Per-format overrides */}
+          {perFormatEnabled && (
+            <div className="mt-4 space-y-3 p-4 bg-white/[0.03] rounded-xl border border-white/5">
+              <p className="text-xs text-gray-500 mb-3">
+                Laissez vide pour utiliser les valeurs par defaut ci-dessus.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {allFormats.map(fmt => {
+                  const override = perFormatOverrides[fmt]
+                  const effectiveWinner = override?.winner || correctWinnerPoints
+                  const effectiveScore = override?.score || exactScoreBonus
+                  const hasOverride = override?.winner || override?.score
+                  return (
+                    <div
+                      key={fmt}
+                      className={`p-3 rounded-lg border transition-colors ${hasOverride ? 'border-violet-500/30 bg-violet-500/5' : 'border-white/5 bg-white/[0.02]'}`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`text-sm font-semibold ${hasOverride ? 'text-violet-400' : 'text-gray-400'}`}>
+                          {fmt}
+                        </span>
+                        <span className="text-xs text-gray-600 font-mono">
+                          max {(parseInt(effectiveWinner) || 0) + (parseInt(effectiveScore) || 0)} pts
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <label className="text-[10px] text-gray-500 uppercase tracking-wider">Vainqueur</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            placeholder={correctWinnerPoints}
+                            value={override?.winner ?? ''}
+                            onChange={(e) => updateFormatOverride(fmt, 'winner', e.target.value)}
+                            className="w-full mt-0.5 px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm font-mono text-center focus:outline-none focus:border-violet-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-gray-600"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-[10px] text-gray-500 uppercase tracking-wider">Score exact</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            placeholder={exactScoreBonus}
+                            value={override?.score ?? ''}
+                            onChange={(e) => updateFormatOverride(fmt, 'score', e.target.value)}
+                            className="w-full mt-0.5 px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm font-mono text-center focus:outline-none focus:border-violet-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-gray-600"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="mt-4 p-4 bg-white/5 rounded-xl border border-white/5">
             <p className="text-sm text-gray-400">
               <strong className="text-white">Exemple :</strong> Bon vainqueur + score exact ={' '}
               <strong className="text-violet-400 font-mono">
                 {(parseInt(correctWinnerPoints) || 0) + (parseInt(exactScoreBonus) || 0)} points
               </strong>
+              {perFormatEnabled && Object.entries(perFormatOverrides).some(([, v]) => v?.winner || v?.score) && (
+                <span className="block mt-1 text-xs text-gray-500">
+                  {Object.entries(perFormatOverrides).filter(([, v]) => v?.winner || v?.score).map(([fmt, v]) => {
+                    const w = parseInt(v?.winner || correctWinnerPoints) || 0
+                    const s = parseInt(v?.score || exactScoreBonus) || 0
+                    return `${fmt}: ${w + s} pts`
+                  }).join(' / ')}
+                </span>
+              )}
             </p>
           </div>
         </Card>

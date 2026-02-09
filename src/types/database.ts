@@ -4,9 +4,15 @@ export type TournamentFormat = 'league' | 'swiss' | 'single_elimination' | 'doub
 export type TournamentStatus = 'draft' | 'active' | 'completed'
 export type MatchFormat = 'BO1' | 'BO3' | 'BO5' | 'BO7'
 
+export type FormatScoringOverride = {
+  correct_winner_points?: number
+  exact_score_bonus?: number
+}
+
 export type ScoringRules = {
   correct_winner_points: number
   exact_score_bonus: number
+  per_format?: Partial<Record<MatchFormat, FormatScoringOverride>>
 }
 
 export type MatchResult = {
