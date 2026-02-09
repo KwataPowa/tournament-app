@@ -283,8 +283,14 @@ export function BracketMatchCard({
                 title={isPredictionLocked ? 'Pronostic verrouillé' : `Modifier: ${prediction.predicted_winner} (${prediction.predicted_score})`}
                 disabled={isPredictionLocked}
               >
-                <span className="block">{prediction.predicted_winner}</span>
-                <span className="text-cyan-300 font-mono">({prediction.predicted_score})</span>
+                <span className="flex items-center justify-center gap-1">
+                  {teams?.find(t => t.name === prediction.predicted_winner)?.logo ? (
+                    <img src={teams.find(t => t.name === prediction.predicted_winner)!.logo} alt={prediction.predicted_winner} className="w-4 h-4 object-contain" />
+                  ) : (
+                    <span>{prediction.predicted_winner}</span>
+                  )}
+                  <span className="text-cyan-300 font-mono">({prediction.predicted_score})</span>
+                </span>
               </button>
             )}
           </div>
@@ -308,7 +314,14 @@ export function BracketMatchCard({
               ${!predictionCorrect ? 'text-red-400' : ''}
             `}
             >
-              {prediction.predicted_winner} ({prediction.predicted_score}) → {predictionCorrect ? `+${prediction?.points_earned ?? 0}` : '0'} pts
+              <span className="inline-flex items-center gap-1">
+                {teams?.find(t => t.name === prediction.predicted_winner)?.logo ? (
+                  <img src={teams.find(t => t.name === prediction.predicted_winner)!.logo} alt={prediction.predicted_winner} className="w-3.5 h-3.5 object-contain" />
+                ) : (
+                  prediction.predicted_winner
+                )}
+                {' '}({prediction.predicted_score}) → {predictionCorrect ? `+${prediction?.points_earned ?? 0}` : '0'} pts
+              </span>
             </span>
           </div>
         )}

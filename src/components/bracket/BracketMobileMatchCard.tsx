@@ -275,7 +275,13 @@ export function BracketMobileMatchCard({
                   : 'bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 active:scale-[0.98]'
               }`}
             >
-              <span className="font-medium">{prediction.predicted_winner}</span>
+              <span className="font-medium flex items-center gap-1.5">
+                {getTeamLogo(prediction.predicted_winner) ? (
+                  <img src={getTeamLogo(prediction.predicted_winner)} alt={prediction.predicted_winner} className="w-5 h-5 object-contain" />
+                ) : (
+                  prediction.predicted_winner
+                )}
+              </span>
               <span className="font-mono text-cyan-300 bg-black/20 px-2 py-0.5 rounded">
                 {prediction.predicted_score}
               </span>
@@ -298,11 +304,15 @@ export function BracketMobileMatchCard({
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className={`text-sm ${
+              <span className={`text-sm flex items-center gap-1.5 ${
                 predictionExact ? 'text-green-400' :
                 predictionCorrect ? 'text-amber-400' : 'text-red-400'
               }`}>
-                {prediction.predicted_winner}
+                {getTeamLogo(prediction.predicted_winner) ? (
+                  <img src={getTeamLogo(prediction.predicted_winner)} alt={prediction.predicted_winner} className="w-4 h-4 object-contain" />
+                ) : (
+                  prediction.predicted_winner
+                )}
               </span>
               <span className={`text-xs font-mono px-1.5 py-0.5 rounded ${
                 predictionExact ? 'bg-green-500/20 text-green-300' :
