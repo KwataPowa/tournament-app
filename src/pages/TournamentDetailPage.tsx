@@ -431,8 +431,23 @@ export function TournamentDetailPage() {
     const prevRoundMatches = bracketMatches.filter(m => m.round === match.round - 1)
     if (prevRoundMatches.length === 0) return false
 
-    const allComplete = prevRoundMatches.every(m => m.result !== null || m.is_bye)
-    return allComplete && tournament?.status === 'active'
+    const prevRoundComplete = prevRoundMatches.every(m => m.result !== null || m.is_bye)
+    if (!prevRoundComplete) return false
+
+    // Losers bracket: vérifier aussi que les matchs WB drop-in sont terminés
+    if (match.bracket_side === 'losers') {
+      const thisRoundLBIds = new Set(
+        matches
+          .filter(m => m.bracket_side === 'losers' && m.round === match.round && m.stage_id === match.stage_id)
+          .map(m => m.id)
+      )
+      const wbDropIns = matches.filter(m =>
+        m.next_loser_match_id && thisRoundLBIds.has(m.next_loser_match_id)
+      )
+      if (wbDropIns.length > 0 && !wbDropIns.every(m => m.result !== null)) return false
+    }
+
+    return tournament?.status === 'active'
   }, [matches, isAdmin, isBracketFormat, tournament?.status])
 
 
@@ -455,6 +470,7 @@ export function TournamentDetailPage() {
   }
 
   // Calcule les équipes disponibles pour assignation au round d'un match donné
+  // Pool par ROUND (pas par match) : l'admin peut choisir librement les matchups
   const getAvailableTeamsForRound = (match: Match | null): typeof teams => {
     if (!match) return []
 
@@ -463,40 +479,62 @@ export function TournamentDetailPage() {
       return stageTeams
     }
 
-    // 2. Feeder Logic (Pour tous les autres rounds)
-    // Trouver les matchs qui alimentent ce match (Winner -> Next, Loser -> Drop)
-    const feeders = matches.filter(m =>
-      m.next_match_id === match.id ||
-      m.next_loser_match_id === match.id
-    )
-
     const candidates = new Set<string>()
 
-    feeders.forEach(feeder => {
-      // Cas A: Le vainqueur avance (Winner Bracket ou progression normale)
-      if (feeder.next_match_id === match.id) {
-        if (feeder.is_bye) {
-          // Si BYE, l'équipe A avance automatiquement
-          if (feeder.team_a && feeder.team_a !== 'TBD') {
-            candidates.add(feeder.team_a)
-          }
-        }
-        else if (feeder.result?.winner) {
-          candidates.add(feeder.result.winner)
-        }
+    if (match.bracket_side === 'losers') {
+      // Losers bracket: deux sources d'équipes éligibles
+
+      // A) Gagnants du round LB précédent (progression interne LB)
+      if (match.round > 1) {
+        stageMatches
+          .filter(m => m.bracket_side === 'losers' && m.round === match.round - 1)
+          .forEach(m => {
+            if (m.result?.winner) candidates.add(m.result.winner)
+          })
       }
 
-      // Cas B: Le perdant descend (Drop vers Losers Bracket)
-      if (feeder.next_loser_match_id === match.id) {
-        if (feeder.result?.winner) {
-          // Identifier le perdant
-          const loser = feeder.result.winner === feeder.team_a ? feeder.team_b : feeder.team_a
-          if (loser && loser !== 'TBD' && loser !== 'BYE') {
-            candidates.add(loser)
+      // B) Perdants du Winners Bracket (drop-ins)
+      // Trouver les matchs WB dont next_loser_match_id pointe vers un match de CE round LB
+      const thisRoundLBIds = new Set(
+        stageMatches
+          .filter(m => m.bracket_side === 'losers' && m.round === match.round)
+          .map(m => m.id)
+      )
+      stageMatches.forEach(m => {
+        if (m.next_loser_match_id && thisRoundLBIds.has(m.next_loser_match_id)) {
+          if (m.result?.winner) {
+            const loser = m.result.winner === m.team_a ? m.team_b : m.team_a
+            if (loser && loser !== 'TBD' && loser !== 'BYE') {
+              candidates.add(loser)
+            }
           }
         }
-      }
-    })
+      })
+    } else if (match.bracket_side === 'grand_final') {
+      // Grand Final: gagnant WB final + gagnant LB final
+      const winnersMatches = stageMatches.filter(m => m.bracket_side === 'winners')
+      const losersMatches = stageMatches.filter(m => m.bracket_side === 'losers')
+      const maxWR = Math.max(...winnersMatches.map(m => m.round), 0)
+      const maxLR = Math.max(...losersMatches.map(m => m.round), 0)
+
+      winnersMatches.filter(m => m.round === maxWR).forEach(m => {
+        if (m.result?.winner) candidates.add(m.result.winner)
+      })
+      losersMatches.filter(m => m.round === maxLR).forEach(m => {
+        if (m.result?.winner) candidates.add(m.result.winner)
+      })
+    } else {
+      // Winners bracket (round > 1): tous les gagnants du round WB précédent
+      stageMatches
+        .filter(m => m.bracket_side === 'winners' && m.round === match.round - 1)
+        .forEach(m => {
+          if (m.is_bye) {
+            if (m.team_a && m.team_a !== 'TBD') candidates.add(m.team_a)
+          } else if (m.result?.winner) {
+            candidates.add(m.result.winner)
+          }
+        })
+    }
 
     return Array.from(candidates).map(name => {
       const existingTeam = teams.find(t => t.name === name)

@@ -81,7 +81,7 @@ BEGIN
             NEW.result->>'winner',
             NEW.result->>'score',
             scoring,
-            NEW.match_format
+            NEW.match_format::TEXT
         )
         WHERE match_id = NEW.id;
 
@@ -158,7 +158,7 @@ BEGIN
             v_match.result->>'winner',
             v_match.result->>'score',
             v_scoring,
-            v_match.match_format
+            v_match.match_format::TEXT
         )
         WHERE match_id = v_match.id;
     END LOOP;
@@ -218,9 +218,12 @@ BEGIN
         RAISE EXCEPTION 'Match not found: %', p_match_id;
     END IF;
 
-    -- 2. Recuperer le tournoi
+    -- 2. Recuperer le tournoi et resoudre le scoring (stage > tournament)
     SELECT * INTO v_tournament FROM tournaments WHERE id = v_match.tournament_id;
-    v_scoring := v_tournament.scoring_rules;
+    SELECT COALESCE(s.scoring_rules, v_tournament.scoring_rules) INTO v_scoring
+    FROM tournaments t
+    LEFT JOIN stages s ON s.id = v_match.stage_id
+    WHERE t.id = v_match.tournament_id;
 
     -- 3. Sauvegarder l'ancien vainqueur (si existait)
     v_old_winner := v_match.result->>'winner';
@@ -246,7 +249,7 @@ BEGIN
         p_new_winner,
         p_new_score,
         v_scoring,
-        v_match.match_format
+        v_match.match_format::TEXT
     )
     WHERE match_id = p_match_id;
 

@@ -205,13 +205,13 @@ export function MatchResultModal({
             </div>
           )}
 
-          {/* Avertissement effet domino (brackets uniquement) */}
+          {/* Rappel réassignation manuelle (brackets uniquement) */}
           {isCorrection && isBracket && (
-            <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg animate-slide-up">
-              <p className="text-sm text-orange-300 flex items-start gap-2">
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg animate-slide-up">
+              <p className="text-sm text-amber-300 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span>
-                  <strong>Attention :</strong> modifier ce résultat annulera les pronostics des matchs suivants si les équipes qualifiées changent.
+                  <strong>Rappel :</strong> pense à réassigner manuellement les équipes dans les matchs des rounds suivants si le résultat change l'équipe qualifiée.
                 </span>
               </p>
             </div>
